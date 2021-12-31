@@ -18,6 +18,22 @@ from yolox.utils import fuse_model, get_model_info, postprocess, vis
 import torch.nn.functional as F
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
+COLORS = np.array([[0, 0, 0], [244, 67, 54], [233, 30, 99], [156, 39, 176], [103, 58, 183], [100, 30, 60],
+                   [63, 81, 181], [33, 150, 243], [3, 169, 244], [0, 188, 212], [20, 55, 200],
+                   [0, 150, 136], [76, 175, 80], [139, 195, 74], [205, 220, 57], [70, 25, 100],
+                   [255, 235, 59], [255, 193, 7], [255, 152, 0], [255, 87, 34], [90, 155, 50],
+                   [121, 85, 72], [158, 158, 158], [96, 125, 139], [15, 67, 34], [98, 55, 20],
+                   [21, 82, 172], [58, 128, 255], [196, 125, 39], [75, 27, 134], [90, 125, 120],
+                   [121, 82, 7], [158, 58, 8], [96, 25, 9], [115, 7, 234], [8, 155, 220],
+                   [221, 25, 72], [188, 58, 158], [56, 175, 19], [215, 67, 64], [198, 75, 20],
+                   [62, 185, 22], [108, 70, 58], [160, 225, 39], [95, 60, 144], [78, 155, 120],
+                   [101, 25, 142], [48, 198, 28], [96, 225, 200], [150, 167, 134], [18, 185, 90],
+                   [21, 145, 172], [98, 68, 78], [196, 105, 19], [215, 67, 84], [130, 115, 170],
+                   [255, 0, 255], [255, 255, 0], [196, 185, 10], [95, 167, 234], [18, 25, 190],
+                   [0, 255, 255], [255, 0, 0], [0, 255, 0], [0, 0, 255], [155, 0, 0],
+                   [0, 155, 0], [0, 0, 155], [46, 22, 130], [255, 0, 155], [155, 0, 255],
+                   [255, 155, 0], [155, 255, 0], [0, 155, 255], [0, 255, 155], [18, 5, 40],
+                   [120, 120, 255], [255, 58, 30], [60, 45, 60], [75, 27, 244], [128, 25, 70]], dtype='uint8')
 
 def make_parser():
     parser = argparse.ArgumentParser("YOLOX Demo!")
@@ -189,26 +205,23 @@ class Predictor(object):
         # preprocessing: resize
         bboxes /= ratio
         kps = output[:, 7:] / ratio if draw_kp else []
-        if draw_seg:
-            # masks = torch.sigmoid(torch.matmul(seg_output, output[:, 7:].t()))
-            # masks = crop(masks, bboxes/4)
-            # masks = masks.permute(2, 0, 1).contiguous()
-            oh, ow = img.shape[:2]
-            # seg = F.interpolate(masks.unsqueeze(0), (oh, ow), mode='bilinear',
-            #                       align_corners=False).squeeze(0)#.cpu().numpy()
-            # seg = seg.max(axis=0)[1].cpu().numpy()
-            # print(4444, np.unique(seg))
-            seg = seg_output.max(axis=0)[1].cpu().numpy()
-
-            h, w, _ = img.shape
-            seg = cv2.resize(
-                seg, (ow, oh),
-                interpolation=cv2.INTER_NEAREST)[:h, :w]
-        else:
-            seg = []
         cls = output[:, 6]
         scores = output[:, 4] * output[:, 5]
-
+        if draw_seg:
+            masks = torch.sigmoid(torch.matmul(seg_output, output[:, 7:].t()))
+            # masks = torch.matmul(seg_output, output[:, 7:].t())
+            print('11111', torch.unique(masks.gt_(0.5)))
+            masks = crop(masks, bboxes)
+            masks = masks.permute(2, 0, 1).contiguous()
+            oh, ow = img.shape[:2]
+            seg = F.interpolate(masks.unsqueeze(0), (oh, ow), mode='bilinear',
+                                  align_corners=False).squeeze(0).gt_(0.5).cpu().numpy()
+            print(2222, np.unique(seg), seg.shape)
+            seg = seg * cls.numpy()[:, None, None]
+            seg = seg.astype('int').sum(axis=0)
+            print(3333, np.unique(seg), seg.shape)
+        else:
+            seg = []
         vis_res, seg_mask = vis(img, bboxes, scores, cls, cls_conf, self.cls_names, kps, seg)
         return vis_res, seg_mask
 
@@ -278,14 +291,14 @@ def crop(masks, boxes, padding=1):
         - masks should be a size [h, w, n] tensor of masks
         - boxes should be a size [n, 4] tensor of bbox coords in relative point form
     """
-    w, h = boxes[..., 2] - boxes[..., 0], boxes[..., 3] - boxes[..., 1]
-    box_corner = boxes
-    box_corner[..., 0] /= w
-    box_corner[..., 2] /= w
-    box_corner[..., 1] /= h
-    box_corner[..., 3] /= h
-
     h, w, n = masks.size()
+    box_corner = boxes.clone()
+    box_corner[..., 0] /= w*4
+    box_corner[..., 2] /= w*4
+    box_corner[..., 1] /= h*4
+    box_corner[..., 3] /= h*4
+
+
     x1, x2 = sanitize_coordinates(box_corner[:, 0], box_corner[:, 2], w, padding)
     y1, y2 = sanitize_coordinates(box_corner[:, 1], box_corner[:, 3], h, padding)
 

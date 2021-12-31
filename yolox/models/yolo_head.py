@@ -53,7 +53,8 @@ class YOLOXHead(nn.Module):
         if self.segcls > 0:
             self.coef_dim = 32
             self.proto_net = ProtoNet(in_channel=int(in_channels[0] * width), coef_dim=self.coef_dim, width=width)
-            self.semantic_seg_conv = nn.Conv2d(int(in_channels[0] * width), self.segcls - 1, kernel_size=1)
+            if self.training:
+                self.semantic_seg_conv = nn.Conv2d(int(in_channels[0] * width), self.segcls - 1, kernel_size=1)
             self.seg_preds = nn.ModuleList()
 
         for i in range(len(in_channels)):
@@ -202,8 +203,8 @@ class YOLOXHead(nn.Module):
         seg_proto, semantic_pred = None, None
         if self.segcls > 0:
             seg_proto = self.proto_net(xin[0]).permute(0, 2, 3, 1).contiguous()  # feature map P3   放大2
-            # if self.training:
-            semantic_pred = self.semantic_seg_conv(xin[0])
+            if self.training:
+                semantic_pred = self.semantic_seg_conv(xin[0])
 
         for k, (cls_conv, reg_conv, stride_this_level, x) in enumerate(
                 zip(self.cls_convs, self.reg_convs, self.strides, xin)
@@ -280,7 +281,7 @@ class YOLOXHead(nn.Module):
                 [x.flatten(start_dim=2) for x in outputs], dim=2
             ).permute(0, 2, 1)
             if self.decode_in_inference:
-                return self.decode_outputs(outputs, seg_proto=semantic_pred, dtype=xin[0].type())
+                return self.decode_outputs(outputs, seg_proto=seg_proto, dtype=xin[0].type())
             else:
                 return outputs, seg_proto
 
@@ -307,8 +308,6 @@ class YOLOXHead(nn.Module):
                     output[..., -1 * i:-1 * (i - 2)] = output[..., -1 * i:-1 * (i - 2)] * stride + output[..., :2]
                 else:
                     output[..., -2:] = output[..., -2:] * stride + output[..., :2]
-        # if self.segcls > 0:
-        #     for i in
         return output, grid
 
     def decode_outputs(self, outputs, seg_proto, dtype):
@@ -404,7 +403,6 @@ class YOLOXHead(nn.Module):
                 if self.segcls > 0:
                     gt_segs = seg_labels[batch_idx]
                 bboxes_preds_per_image = bbox_preds[batch_idx]
-
                 try:
                     (
                         gt_matched_classes,
@@ -501,7 +499,7 @@ class YOLOXHead(nn.Module):
         reg_targets = torch.cat(reg_targets, 0)
         obj_targets = torch.cat(obj_targets, 0)
         fg_masks = torch.cat(fg_masks, 0)
-        if self.use_l1:  # False
+        if self.use_l1:
             l1_targets = torch.cat(l1_targets, 0)
 
         num_fg = max(num_fg, 1)
@@ -537,24 +535,23 @@ class YOLOXHead(nn.Module):
                 loss_s += F.binary_cross_entropy_with_logits(cur_segment, segment_gt, reduction='sum')
             loss_s = loss_s / mask_h / mask_w / batch_size
 
-            # proto_h, proto_w = seg_proto.shape[1:3]  # 320--> 80,80,32
-            # for bb in range(batch_size):
-            #     downsampled_mask = F.interpolate(seg_targets[bb], (proto_h, proto_w), mode='bilinear',
-            #                                 align_corners=False).squeeze(0)
-            #     downsampled_mask = downsampled_mask.gt(0.5).float()
-            #     downsampled_mask = downsampled_mask.permute(1, 2, 0).contiguous()
-            #     fg_masks, pos_anchor_box = fg_masks_ls[bb], reg_targets_ls[bb]/4
-            #     total_pos_num += fg_masks.sum()
-            #
-            #     pos_coef = seg_preds[bb].view(-1, self.coef_dim)[fg_masks]
-            #     mask_p = torch.sigmoid(seg_proto[bb] @ pos_coef.t())  # 80,80,-1
-            #     mask_p = self.crop(mask_p, pos_anchor_box)
-            #     mask_loss = self.seg_loss(mask_p, downsampled_mask)
-            #     anchor_area = (pos_anchor_box[:, 2] - pos_anchor_box[:, 0]) * (pos_anchor_box[:, 3] - pos_anchor_box[:, 1])
-            #     mask_loss = mask_loss.sum(dim=(0, 1)) / anchor_area
-            #     loss_m += torch.sum(mask_loss)
-            # del seg_targets, downsampled_mask
-            # loss_m = 6.125 * loss_m / proto_h / proto_w / total_pos_num
+            proto_h, proto_w = seg_proto.shape[1:3]  # 320--> 80,80,32
+            for bb in range(batch_size):
+                downsampled_mask = F.interpolate(seg_targets[bb], (proto_h, proto_w), mode='bilinear',
+                                            align_corners=False).squeeze(0)
+                downsampled_mask = downsampled_mask.gt(0.5).float()
+                downsampled_mask = downsampled_mask.permute(1, 2, 0).contiguous()
+                fg_masks, pos_anchor_box = fg_masks_ls[bb], reg_targets_ls[bb]
+
+                pos_coef = seg_preds[bb].view(-1, self.coef_dim)[fg_masks]
+                # mask_p = torch.sigmoid(seg_proto[bb] @ pos_coef.t())  # 80,80,-1
+                mask_p = seg_proto[bb] @ pos_coef.t()
+                mask_p, anchor_area = self.crop(mask_p, pos_anchor_box.clone())  # /4
+                mask_loss = self.seg_loss(mask_p, downsampled_mask)
+                mask_loss = mask_loss.sum(dim=(0, 1)) / anchor_area
+                loss_m += torch.sum(mask_loss)
+            del seg_targets, downsampled_mask
+            loss_m = 6.125 * loss_m / proto_h / proto_w / num_fg
 
             loss_seg = loss_m + loss_s
         else:
@@ -819,23 +816,18 @@ class YOLOXHead(nn.Module):
             - masks should be a size [h, w, n] tensor of masks
             - boxes should be a size [n, 4] tensor of bbox coords in relative point form
         """
-
-        if cxcywh:
-            box_corner = boxes.new(boxes.shape)
-            w, h = boxes[..., 2], boxes[..., 3]
-            box_corner[..., 0] = (boxes[..., 0] - w / 2) / w
-            box_corner[..., 1] = (boxes[..., 1] - h / 2) / h
-            box_corner[..., 2] = (boxes[..., 0] + w / 2) / w
-            box_corner[..., 3] = (boxes[..., 1] + h / 2) / h
-        else:
-            w, h = boxes[..., 2] - boxes[..., 0], boxes[..., 3] - boxes[..., 1]
-            box_corner = boxes
-            box_corner[..., 0] /= w
-            box_corner[..., 2] /= w
-            box_corner[..., 1] /= h
-            box_corner[..., 3] /= h
+        # if cxcywh:
+        box_corner = boxes.new(boxes.shape)
+        w, h = boxes[..., 2], boxes[..., 3]
+        area = w/4 * h/4
+        box_corner[..., 0] = (boxes[..., 0] - w / 2)
+        box_corner[..., 1] = (boxes[..., 1] - h / 2)
+        box_corner[..., 2] = (boxes[..., 0] + w / 2)
+        box_corner[..., 3] = (boxes[..., 1] + h / 2)
 
         h, w, n = masks.size()  # 80,80,-1
+        box_corner[..., [0, 2]] /= w * 4
+        box_corner[..., [1, 3]] /= h * 4
         x1, x2 = self.sanitize_coordinates(box_corner[:, 0], box_corner[:, 2], w, padding)
         y1, y2 = self.sanitize_coordinates(box_corner[:, 1], box_corner[:, 3], h, padding)
 
@@ -849,7 +841,7 @@ class YOLOXHead(nn.Module):
 
         crop_mask = masks_left * masks_right * masks_up * masks_down
 
-        return masks * crop_mask.float()
+        return masks * crop_mask.float(), area
 
     def sanitize_coordinates(self, _x1, _x2, img_size, padding=0):
         """

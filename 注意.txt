@@ -1,6 +1,6 @@
 
 ## 代码本地安装
-pip3 install -v -e .
+pip install -v -e .
 
 
 ## 训练   -d 为GPU数量
