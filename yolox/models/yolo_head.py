@@ -43,6 +43,7 @@ class YOLOXHead(nn.Module):
 
         self.cls_convs = nn.ModuleList()
         self.reg_convs = nn.ModuleList()
+        self.seg_convs = nn.ModuleList()
         self.cls_preds = nn.ModuleList()
         self.reg_preds = nn.ModuleList()
         self.obj_preds = nn.ModuleList()
@@ -145,6 +146,26 @@ class YOLOXHead(nn.Module):
                     )
                 )
             if self.segcls > 0:
+                self.seg_convs.append(
+                    nn.Sequential(
+                        *[
+                            Conv(
+                                in_channels=int(256 * width),
+                                out_channels=int(256 * width),
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                            ),
+                            Conv(
+                                in_channels=int(256 * width),
+                                out_channels=int(256 * width),
+                                ksize=3,
+                                stride=1,
+                                act=act,
+                            ),
+                        ]
+                    )
+                )
                 self.seg_preds.append(
                     nn.Sequential(
                         *[
@@ -222,7 +243,9 @@ class YOLOXHead(nn.Module):
             if self.keypoints > 0:
                 lmk_output = self.lmk_preds[k](reg_feat)
             if self.segcls > 0:
-                seg_output = self.seg_preds[k](reg_feat)  # ??????
+                seg_x = x0
+                seg_feat = self.seg_convs[k](seg_x)
+                seg_output = self.seg_preds[k](seg_feat)
 
             if self.training:
                 if self.keypoints > 0:
@@ -551,9 +574,9 @@ class YOLOXHead(nn.Module):
                 mask_loss = mask_loss.sum(dim=(0, 1)) / anchor_area
                 loss_m += torch.sum(mask_loss)
             del seg_targets, downsampled_mask
-            loss_m = 10 * loss_m / proto_h / proto_w / num_fg
+            loss_m = 6.125 * loss_m / proto_h / proto_w / num_fg
 
-            loss_seg = loss_m + loss_s * 0.5
+            loss_seg = loss_m + loss_s
         else:
             loss_seg = 0
 

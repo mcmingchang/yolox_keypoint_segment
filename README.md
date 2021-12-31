@@ -4,7 +4,7 @@
 ## Introduction
 * 关键点版本：已完成
 * 全景分割版本：已完成
-* 实例分割版本：正在进行,有大佬一起开发么，思路卡住了
+* 实例分割版本：已完成
 
 
 YOLOX is an anchor-free version of YOLO, with a simpler design but better performance! It aims to bridge the gap between research and industrial communities.

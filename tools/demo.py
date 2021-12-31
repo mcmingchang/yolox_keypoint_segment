@@ -205,7 +205,7 @@ class Predictor(object):
         output = output.cpu()
         bboxes = output[:, 0:4]
         # preprocessing: resize
-        bboxes /= ratio
+
         kps = output[:, 7:] / ratio if draw_kp else []
         cls = output[:, 6]
         scores = output[:, 4] * output[:, 5]
@@ -213,25 +213,15 @@ class Predictor(object):
         sh, sw = seg_output.shape[:2]
         if draw_seg:
             masks = torch.sigmoid(torch.matmul(seg_output, output[:, 7:].t()))
-            # masks = torch.matmul(seg_output, output[:, 7:].t())
-            masks = crop(masks, bboxes)
+            masks = crop(masks, bboxes.clone())
             masks = masks.permute(2, 0, 1).contiguous()
             seg = F.interpolate(masks.unsqueeze(0), (int(sh * 4 / ratio), int(sw * 4 / ratio)), mode='bilinear',
                                 align_corners=False).squeeze(0).gt_(0.5).cpu().numpy()
-            print(2222, np.unique(seg), seg.shape)
             seg = seg * cls.numpy()[:, None, None]
             seg = seg.astype('int').sum(axis=0)[:h, :w]
-            print(3333, np.unique(seg), seg.shape)
-
-            ##################################
-            # seg = seg_output.max(axis=0)[1].cpu().numpy()
-            # # print(seg)
-
-            # seg = cv2.resize(
-            #     seg, (int(sw*8 / ratio), int(sh*8 / ratio)),
-            #     interpolation=cv2.INTER_NEAREST)[:h, :w]
         else:
             seg = []
+        bboxes /= ratio
         vis_res, seg_mask = vis(img, bboxes, scores, cls, cls_conf, self.cls_names, kps, seg)
         return vis_res, seg_mask
 
@@ -296,18 +286,13 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
 
 
 def crop(masks, boxes, padding=1):
-    """
-    "Crop" predicted masks by zeroing out everything not in the predicted bbox.
-    Args:
-        - masks should be a size [h, w, n] tensor of masks
-        - boxes should be a size [n, 4] tensor of bbox coords in relative point form
-    """
+    # h, w = shape
     h, w, n = masks.size()
     box_corner = boxes.clone()
-    box_corner[..., 0] /= w * 4
-    box_corner[..., 2] /= w * 4
-    box_corner[..., 1] /= h * 4
-    box_corner[..., 3] /= h * 4
+    box_corner[..., 0] /= w*4
+    box_corner[..., 2] /= w*4
+    box_corner[..., 1] /= h*4
+    box_corner[..., 3] /= h*4
 
     x1, x2 = sanitize_coordinates(box_corner[:, 0], box_corner[:, 2], w, padding)
     y1, y2 = sanitize_coordinates(box_corner[:, 1], box_corner[:, 3], h, padding)
