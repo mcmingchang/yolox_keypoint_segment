@@ -16,6 +16,7 @@ from yolox.data.datasets import COCO_CLASSES
 from yolox.exp import get_exp
 from yolox.utils import fuse_model, get_model_info, postprocess, vis
 import torch.nn.functional as F
+
 IMAGE_EXT = [".jpg", ".jpeg", ".webp", ".bmp", ".png"]
 
 COLORS = np.array([[0, 0, 0], [244, 67, 54], [233, 30, 99], [156, 39, 176], [103, 58, 183], [100, 30, 60],
@@ -34,6 +35,7 @@ COLORS = np.array([[0, 0, 0], [244, 67, 54], [233, 30, 99], [156, 39, 176], [103
                    [0, 155, 0], [0, 0, 155], [46, 22, 130], [255, 0, 155], [155, 0, 255],
                    [255, 155, 0], [155, 255, 0], [0, 155, 255], [0, 255, 155], [18, 5, 40],
                    [120, 120, 255], [255, 58, 30], [60, 45, 60], [75, 27, 244], [128, 25, 70]], dtype='uint8')
+
 
 def make_parser():
     parser = argparse.ArgumentParser("YOLOX Demo!")
@@ -119,17 +121,17 @@ def get_image_list(path):
 
 class Predictor(object):
     def __init__(
-        self,
-        model,
-        exp,
-        cls_names=COCO_CLASSES,
-        trt_file=None,
-        decoder=None,
-        device="cpu",
-        fp16=False,
-        legacy=False,
-        keypoints=False,
-        segs=False
+            self,
+            model,
+            exp,
+            cls_names=COCO_CLASSES,
+            trt_file=None,
+            decoder=None,
+            device="cpu",
+            fp16=False,
+            legacy=False,
+            keypoints=False,
+            segs=False
     ):
         self.model = model
         self.cls_names = cls_names
@@ -207,19 +209,27 @@ class Predictor(object):
         kps = output[:, 7:] / ratio if draw_kp else []
         cls = output[:, 6]
         scores = output[:, 4] * output[:, 5]
+        h, w, _ = img.shape
+        sh, sw = seg_output.shape[:2]
         if draw_seg:
             masks = torch.sigmoid(torch.matmul(seg_output, output[:, 7:].t()))
             # masks = torch.matmul(seg_output, output[:, 7:].t())
-            print('11111', torch.unique(masks.gt_(0.5)))
             masks = crop(masks, bboxes)
             masks = masks.permute(2, 0, 1).contiguous()
-            oh, ow = img.shape[:2]
-            seg = F.interpolate(masks.unsqueeze(0), (oh, ow), mode='bilinear',
-                                  align_corners=False).squeeze(0).gt_(0.5).cpu().numpy()
+            seg = F.interpolate(masks.unsqueeze(0), (int(sh * 4 / ratio), int(sw * 4 / ratio)), mode='bilinear',
+                                align_corners=False).squeeze(0).gt_(0.5).cpu().numpy()
             print(2222, np.unique(seg), seg.shape)
             seg = seg * cls.numpy()[:, None, None]
-            seg = seg.astype('int').sum(axis=0)
+            seg = seg.astype('int').sum(axis=0)[:h, :w]
             print(3333, np.unique(seg), seg.shape)
+
+            ##################################
+            # seg = seg_output.max(axis=0)[1].cpu().numpy()
+            # # print(seg)
+
+            # seg = cv2.resize(
+            #     seg, (int(sw*8 / ratio), int(sh*8 / ratio)),
+            #     interpolation=cv2.INTER_NEAREST)[:h, :w]
         else:
             seg = []
         vis_res, seg_mask = vis(img, bboxes, scores, cls, cls_conf, self.cls_names, kps, seg)
@@ -235,7 +245,7 @@ def image_demo(predictor, vis_folder, path, current_time, save_result, draw_kp, 
     for image_name in files:
         outputs, seg_outputs, img_info = predictor.inference(image_name)
         result_image, seg_mask = predictor.visual(outputs[0], seg_outputs[0], img_info,
-                                        predictor.confthre, draw_kp, draw_seg)
+                                                  predictor.confthre, draw_kp, draw_seg)
         if save_result:
             save_folder = os.path.join(
                 vis_folder, time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
@@ -284,6 +294,7 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
         else:
             break
 
+
 def crop(masks, boxes, padding=1):
     """
     "Crop" predicted masks by zeroing out everything not in the predicted bbox.
@@ -293,11 +304,10 @@ def crop(masks, boxes, padding=1):
     """
     h, w, n = masks.size()
     box_corner = boxes.clone()
-    box_corner[..., 0] /= w*4
-    box_corner[..., 2] /= w*4
-    box_corner[..., 1] /= h*4
-    box_corner[..., 3] /= h*4
-
+    box_corner[..., 0] /= w * 4
+    box_corner[..., 2] /= w * 4
+    box_corner[..., 1] /= h * 4
+    box_corner[..., 3] /= h * 4
 
     x1, x2 = sanitize_coordinates(box_corner[:, 0], box_corner[:, 2], w, padding)
     y1, y2 = sanitize_coordinates(box_corner[:, 1], box_corner[:, 3], h, padding)
@@ -313,6 +323,7 @@ def crop(masks, boxes, padding=1):
     crop_mask = masks_left * masks_right * masks_up * masks_down
 
     return masks * crop_mask.float()
+
 
 def sanitize_coordinates(_x1, _x2, img_size, padding=0):
     """
@@ -330,9 +341,6 @@ def sanitize_coordinates(_x1, _x2, img_size, padding=0):
     x2 = torch.clamp(x2 + padding, max=img_size)
 
     return x1, x2
-
-
-
 
 
 def main(exp, args):

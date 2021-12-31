@@ -222,7 +222,7 @@ class YOLOXHead(nn.Module):
             if self.keypoints > 0:
                 lmk_output = self.lmk_preds[k](reg_feat)
             if self.segcls > 0:
-                seg_output = self.seg_preds[k](cls_feat)  # ??????
+                seg_output = self.seg_preds[k](reg_feat)  # ??????
 
             if self.training:
                 if self.keypoints > 0:
@@ -280,7 +280,7 @@ class YOLOXHead(nn.Module):
             outputs = torch.cat(
                 [x.flatten(start_dim=2) for x in outputs], dim=2
             ).permute(0, 2, 1)
-            if self.decode_in_inference:
+            if self.decode_in_inference:  # semantic_pred  seg_proto
                 return self.decode_outputs(outputs, seg_proto=seg_proto, dtype=xin[0].type())
             else:
                 return outputs, seg_proto
@@ -551,9 +551,9 @@ class YOLOXHead(nn.Module):
                 mask_loss = mask_loss.sum(dim=(0, 1)) / anchor_area
                 loss_m += torch.sum(mask_loss)
             del seg_targets, downsampled_mask
-            loss_m = 6.125 * loss_m / proto_h / proto_w / num_fg
+            loss_m = 10 * loss_m / proto_h / proto_w / num_fg
 
-            loss_seg = loss_m + loss_s
+            loss_seg = loss_m + loss_s * 0.5
         else:
             loss_seg = 0
 
