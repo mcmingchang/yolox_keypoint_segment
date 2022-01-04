@@ -391,7 +391,7 @@ class YOLOXHead(nn.Module):
         y_shifts = torch.cat(y_shifts, 1)  # [1, n_anchors_all]
         expanded_strides = torch.cat(expanded_strides, 1)
         if self.use_l1:
-            origin_preds = torch.cat(origin_preds, 1)
+            origin_preds = torch.cat(origin_preds, 1)  # batch,-1,4
 
         cls_targets = []
         cls_targets_ls = []
@@ -541,6 +541,7 @@ class YOLOXHead(nn.Module):
             loss_lmk = self.lmk_loss(lmk_preds.view(-1, 2 * self.keypoints)[fg_masks], lmk_targets)
         else:
             loss_lmk = 0
+
         if self.segcls > 0:
             loss_s, loss_m, total_pos_num = 0, 0, 0
             batch_size, num_classes, mask_h, mask_w = semantic_pred.size()
@@ -564,17 +565,16 @@ class YOLOXHead(nn.Module):
                                             align_corners=False).squeeze(0)
                 downsampled_mask = downsampled_mask.gt(0.5).float()
                 downsampled_mask = downsampled_mask.permute(1, 2, 0).contiguous()
-                fg_masks, pos_anchor_box = fg_masks_ls[bb], reg_targets_ls[bb]
+                fg_mask, pos_anchor_box = fg_masks_ls[bb], reg_targets_ls[bb]
 
-                pos_coef = seg_preds[bb].view(-1, self.coef_dim)[fg_masks]
-                # mask_p = torch.sigmoid(seg_proto[bb] @ pos_coef.t())  # 80,80,-1
+                pos_coef = seg_preds[bb].view(-1, self.coef_dim)[fg_mask]
                 mask_p = seg_proto[bb] @ pos_coef.t()
                 mask_p, anchor_area = self.crop(mask_p, pos_anchor_box.clone())  # /4
                 mask_loss = self.seg_loss(mask_p, downsampled_mask)
-                mask_loss = mask_loss.sum(dim=(0, 1)) / anchor_area
+                mask_loss = mask_loss.sum(dim=(0, 1))# / anchor_area
                 loss_m += torch.sum(mask_loss)
             del seg_targets, downsampled_mask
-            loss_m = 6.125 * loss_m / proto_h / proto_w / num_fg
+            loss_m = loss_m / proto_h / proto_w / num_fg# * 4.125
 
             loss_seg = loss_m + loss_s
         else:
