@@ -17,10 +17,6 @@ def base64_2_img(base64_str):
     return img
 
 
-
-
-
-
 class RandomDataset:
     def __init__(self, path, cate_ls, mask_order, cate_id):
         self.path = path
@@ -201,38 +197,41 @@ class RandomDataset:
 
 if __name__ == '__main__':
     color = {'door': (0, 0, 255), 'window': (0, 255, 0), 'wire-box': (255, 0, 0),
-             'electric-box': (0, 255, 255), 'plaster': (0, 0, 255)}
-    data_dir, cate_ls, mask_order, cate_id = 'D:/train_model/YOLOX-main/datasets/plaster_seg/dataset', \
-                                             ['plaster'], \
-                                             ['plaster'], {'plaster': 10}
+             'electric-box': (0, 255, 255), 'plaster': (255, 0, 255),
+             'brick-wall': (255, 255, 127), 'wallboard': (127, 255, 255),
+             'tilt-brick': (255, 127, 255)}
+    data_dir, cate_ls, mask_order, cate_id = 'D:/train_model/yolox_keypoint_segment/datasets/wall_seg/dataset', \
+                                             ['door', 'window', 'wire-box', 'brick-wall', 'electric-box', 'wallboard', 'tilt-brick'], \
+                                             ['brick-wall', 'wallboard', 'tilt-brick', 'door', 'window', 'electric-box', 'wire-box'], \
+                                             {'door': 10, 'window': 20, 'wire-box': 30, 'brick-wall': 40, 'electric-box': 50, 'wallboard': 60, 'tilt-brick': 70}
     dataset = RandomDataset(data_dir, cate_ls, mask_order, cate_id)
     for i in range(100):
         img, box_ls = dataset.get_train_data()
-        cv2.imwrite(f'plaster/{i}.png', img)
-    #     left = img[:, :, 0:3].astype(np.uint8)
-    #     right = img[:, :, -1]
-    #     h, w = left.shape[:2]
-    #     mask = np.zeros((h, w, 3))
-    #     for box in box_ls:
-    #         xy, segmentations = box.split("/")
-    #         list_xy = xy.split(",")
-    #         x_min = list_xy[0]
-    #         y_min = list_xy[1]
-    #         x_max = list_xy[2]
-    #         y_max = list_xy[3]
-    #         classes = list_xy[4]
-    #         segmentation = np.array(
-    #             [[int(i) for i in segmentation.split(',')] for segmentation in segmentations.split('*')]).reshape(-1, 2)
-    #         segmentation = np.expand_dims(segmentation, axis=0)
-    #         cv2.fillPoly(mask, segmentation.astype(np.int32), color[dataset.cate_ls[int(classes) - 1]])
-    #     cv2.imshow('1', left)
-    #     cv2.imshow('2', right)
-    #
-    #     cv2.imshow('mask', mask)
-    #     if cv2.waitKey(0) == ord('q'):
-    #         break
-    #     cv2.destroyAllWindows()
-    # cv2.destroyAllWindows()
+        # cv2.imwrite(f'plaster/{i}.png', img)
+        left = img[:, :, 0:3].astype(np.uint8)
+        right = img[:, :, -1]
+        h, w = left.shape[:2]
+        mask = np.zeros((h, w, 3))
+        for box in box_ls:
+            xy, segmentations = box.split("/")
+            list_xy = xy.split(",")
+            x_min = list_xy[0]
+            y_min = list_xy[1]
+            x_max = list_xy[2]
+            y_max = list_xy[3]
+            classes = list_xy[4]
+            segmentation = np.array(
+                [[int(i) for i in segmentation.split(',')] for segmentation in segmentations.split('*')]).reshape(-1, 2)
+            segmentation = np.expand_dims(segmentation, axis=0)
+            cv2.fillPoly(mask, segmentation.astype(np.int32), color[dataset.cate_ls[int(classes) - 1]])
+        cv2.imshow('1', left)
+        cv2.imshow('2', right)
+
+        cv2.imshow('mask', mask)
+        if cv2.waitKey(0) == ord('q'):
+            break
+        cv2.destroyAllWindows()
+    cv2.destroyAllWindows()
 
 
 
