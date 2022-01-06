@@ -58,7 +58,9 @@ class YOLOXHead(nn.Module):
             if self.training:
                 self.semantic_seg_conv = nn.Conv2d(int(in_channels[0] * width), self.segcls, kernel_size=1)
             self.seg_preds = nn.ModuleList()
+            self.mask_ratio = 4 if len(in_channels) == 3 else 2
             in_channels = in_channels if len(in_channels) == 3 else in_channels[1:]
+
 
         for i in range(len(in_channels)):
             self.stems.append(
@@ -860,15 +862,15 @@ class YOLOXHead(nn.Module):
     def crop(self, masks, boxes, padding=1):
         box_corner = boxes.new(boxes.shape)
         w, h = boxes[..., 2], boxes[..., 3]
-        area = w / 4 * h / 4
+        area = w / self.mask_ratio * h / self.mask_ratio
         box_corner[..., 0] = (boxes[..., 0] - w / 2)
         box_corner[..., 1] = (boxes[..., 1] - h / 2)
         box_corner[..., 2] = (boxes[..., 0] + w / 2)
         box_corner[..., 3] = (boxes[..., 1] + h / 2)
 
         h, w, n = masks.size()  # 80,80,-1
-        box_corner[..., [0, 2]] /= w * 4
-        box_corner[..., [1, 3]] /= h * 4
+        box_corner[..., [0, 2]] /= w * self.mask_ratio
+        box_corner[..., [1, 3]] /= h * self.mask_ratio
         x1, x2 = self.sanitize_coordinates(box_corner[:, 0], box_corner[:, 2], w, padding)
         y1, y2 = self.sanitize_coordinates(box_corner[:, 1], box_corner[:, 3], h, padding)
 

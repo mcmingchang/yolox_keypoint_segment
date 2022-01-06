@@ -146,6 +146,7 @@ class Predictor(object):
         self.preproc = ValTransform(legacy=legacy)
         self.keypoints = keypoints
         self.segs = segs
+        self.mask_ratio = 4 if len(exp.in_channels) == 3 else 2
         if trt_file is not None:
             from torch2trt import TRTModule
 
@@ -213,11 +214,14 @@ class Predictor(object):
         sh, sw = seg_output.shape[:2]
         if draw_seg:
             masks = torch.sigmoid(torch.matmul(seg_output, output[:, 7:].t()))
-            masks = crop(masks, bboxes.clone())
+            masks = crop(masks, bboxes.clone(), mask_ratio=self.mask_ratio)
             masks = masks.permute(2, 0, 1).contiguous()
-            seg = F.interpolate(masks.unsqueeze(0), (int(sh * 4 / ratio), int(sw * 4 / ratio)), mode='bilinear',
+            seg = F.interpolate(masks.unsqueeze(0),
+                                (int(sh * self.mask_ratio / ratio),
+                                 int(sw * self.mask_ratio / ratio)),
+                                mode='bilinear',
                                 align_corners=False).squeeze(0).gt_(0.5).cpu().numpy()
-            seg = seg * (cls.numpy()+1)[:, None, None]
+            seg = seg * (cls.numpy() + 1)[:, None, None]
             seg = seg.astype('int').sum(axis=0)[:h, :w]
         else:
             seg = []
@@ -285,14 +289,14 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
             break
 
 
-def crop(masks, boxes, padding=1):
+def crop(masks, boxes, padding=1, mask_ratio=4):
     # h, w = shape
     h, w, n = masks.size()
     box_corner = boxes.clone()
-    box_corner[..., 0] /= w*4
-    box_corner[..., 2] /= w*4
-    box_corner[..., 1] /= h*4
-    box_corner[..., 3] /= h*4
+    box_corner[..., 0] /= w * mask_ratio
+    box_corner[..., 2] /= w * mask_ratio
+    box_corner[..., 1] /= h * mask_ratio
+    box_corner[..., 3] /= h * mask_ratio
 
     x1, x2 = sanitize_coordinates(box_corner[:, 0], box_corner[:, 2], w, padding)
     y1, y2 = sanitize_coordinates(box_corner[:, 1], box_corner[:, 3], h, padding)
