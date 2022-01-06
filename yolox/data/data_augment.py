@@ -223,12 +223,11 @@ class TrainTransform:
         seg = seg_targets.copy() if self.segcls > 0 else np.array([])
         if len(boxes) == 0:
             targets = np.zeros((self.max_labels, 5 + 2 * self.keypoints), dtype=np.float32)
-
             if self.keypoints > 0:
                 targets[..., -2 * self.keypoints:] = targets[..., -2 * self.keypoints:] - 1
             if self.segcls > 0:
                 h, w, _ = image.shape
-                seg_targets = np.zeros((self.max_labels, h, w), dtype=np.float32)
+                seg_targets = seg_targets * 0
             else:
                 seg_targets = np.array([])
             image, r_o, seg_targets = preproc(image, input_dim, seg_targets)
@@ -274,12 +273,6 @@ class TrainTransform:
         else:
             targets_t = np.hstack((labels_t, boxes_t))
             padded_labels = np.zeros((self.max_labels, 5))
-        if self.segcls > 0:
-            _, h, w = image_t.shape
-            padded_seg = np.zeros((self.max_labels, h, w))
-            padded_seg[range(len(targets_t))[:self.max_labels]] = seg_t[:self.max_labels]
-            seg_t = padded_seg
-
         padded_labels[range(len(targets_t))[:self.max_labels]] = targets_t[:self.max_labels]
         padded_labels = np.ascontiguousarray(padded_labels, dtype=np.float32)
         return image_t, padded_labels, seg_t

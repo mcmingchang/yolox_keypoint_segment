@@ -48,6 +48,7 @@ class YOLOXHead(nn.Module):
         self.reg_preds = nn.ModuleList()
         self.obj_preds = nn.ModuleList()
         self.stems = nn.ModuleList()
+
         if self.keypoints > 0:
             self.lmk_preds = nn.ModuleList()
         Conv = DWConv if depthwise else BaseConv
@@ -55,8 +56,9 @@ class YOLOXHead(nn.Module):
             self.coef_dim = 32
             self.proto_net = ProtoNet(in_channel=int(in_channels[0] * width), coef_dim=self.coef_dim, width=width)
             if self.training:
-                self.semantic_seg_conv = nn.Conv2d(int(in_channels[0] * width), self.segcls - 1, kernel_size=1)
+                self.semantic_seg_conv = nn.Conv2d(int(in_channels[0] * width), self.segcls, kernel_size=1)
             self.seg_preds = nn.ModuleList()
+            in_channels = in_channels if len(in_channels) == 3 else in_channels[1:]
 
         for i in range(len(in_channels)):
             self.stems.append(
@@ -176,7 +178,6 @@ class YOLOXHead(nn.Module):
                                 stride=1,
                                 padding=0,
                             ),
-                            # nn.Tanh()
                         ]
                     )
                 )
@@ -186,8 +187,9 @@ class YOLOXHead(nn.Module):
                 self.bcewithlog_loss = nn.BCEWithLogitsLoss(reduction="none")
                 self.iou_loss = IOUloss(reduction="none")
                 self.lmk_loss = LandmarksLoss()
-                self.seg_loss = nn.BCEWithLogitsLoss(reduction="none")
-                self.seg_loss2 = nn.CrossEntropyLoss(reduction="none")
+                self.cross_entropy_loss2d = CrossEntropyLoss2d(ignore_index=-1)
+                self.bce_with_logitsloss = nn.BCEWithLogitsLoss(reduction="none")
+                self.cross_entropy_loss = nn.CrossEntropyLoss(reduction="none")
                 self.strides = strides
                 self.grids = [torch.zeros(1)] * len(in_channels)
                 self.expanded_strides = [None] * len(in_channels)
@@ -223,10 +225,11 @@ class YOLOXHead(nn.Module):
         expanded_strides = []
         seg_proto, semantic_pred = None, None
         if self.segcls > 0:
+
             seg_proto = self.proto_net(xin[0]).permute(0, 2, 3, 1).contiguous()  # feature map P3   放大2
             if self.training:
                 semantic_pred = self.semantic_seg_conv(xin[0])
-
+            xin = xin if len(xin) == 3 else xin[1:]
         for k, (cls_conv, reg_conv, stride_this_level, x) in enumerate(
                 zip(self.cls_convs, self.reg_convs, self.strides, xin)
         ):
@@ -380,7 +383,7 @@ class YOLOXHead(nn.Module):
 
         # calculate targets
         mixup = labels.shape[2] > 15
-        if mixup:  # ？？？
+        if mixup:
             label_cut = torch.cat((labels[..., :5], labels[..., -2 * self.keypoints:]), dim=-1)
         else:
             label_cut = labels
@@ -415,8 +418,8 @@ class YOLOXHead(nn.Module):
                 if self.keypoints > 0:
                     lmk_target = outputs.new_zeros((0, self.keypoints * 2))
                 if self.segcls > 0:
-                    proto_h, proto_w = seg_proto.shape[1:3]
-                    seg_target = outputs.new_zeros((0, proto_h, proto_w))
+                    seg_target = seg_labels[batch_idx]
+                    cls_targets_ls.append(cls_target)
                 fg_mask = outputs.new_zeros(total_num_anchors).bool()
             else:
                 gt_bboxes_per_image = labels[batch_idx, :num_gt, 1:5]
@@ -492,7 +495,7 @@ class YOLOXHead(nn.Module):
                 if self.keypoints > 0:
                     lmk_target = gt_lmks[matched_gt_inds]
                 if self.segcls > 0:
-                    seg_target = gt_segs[matched_gt_inds]
+                    seg_target = gt_segs
                 if self.use_l1:
                     l1_target = self.get_l1_target(
                         outputs.new_zeros((num_fg_img, 4)),
@@ -516,6 +519,7 @@ class YOLOXHead(nn.Module):
         if self.keypoints > 0:
             lmk_targets = torch.cat(lmk_targets, 0)
         if self.segcls > 0:
+            seg_targets = torch.cat(seg_targets, 0)
             reg_targets_ls = reg_targets.copy()
             fg_masks_ls = fg_masks.copy()
         cls_targets = torch.cat(cls_targets, 0)
@@ -545,36 +549,57 @@ class YOLOXHead(nn.Module):
         if self.segcls > 0:
             loss_s, loss_m, total_pos_num = 0, 0, 0
             batch_size, num_classes, mask_h, mask_w = semantic_pred.size()
-            downsampled_masks = F.interpolate(seg_labels, (mask_h, mask_w), mode='bilinear',
-                                       align_corners=False)
-            del seg_labels
-            downsampled_masks = downsampled_masks.gt(0.5).float()
-            for bb in range(batch_size):
-                cur_segment = semantic_pred[bb]
-                cur_class_gt = cls_targets_ls[bb].long()
-                downsampled_mask = downsampled_masks[bb]
-                segment_gt = torch.zeros_like(cur_segment, requires_grad=False)
-                for j in range(cur_class_gt.size(0)):
-                    segment_gt[cur_class_gt[j]-1] = torch.max(segment_gt[cur_class_gt[j]-1], downsampled_mask[j])
-                loss_s += F.binary_cross_entropy_with_logits(cur_segment, segment_gt, reduction='sum')
-            loss_s = loss_s / mask_h / mask_w / batch_size
+            seg_targets = seg_targets.squeeze(1)
+            b, h, w = seg_targets.size()
+            seg_targets_ls = []
+            for b_ in range(b):
+                seg_targets2 = torch.zeros(self.segcls, h, w)
+                for cls in range(1, self.segcls):
+                    seg_targets2[cls][seg_targets[b_] == cls] = 1
+                seg_targets_ls.append(seg_targets2)
+            seg_labels_section = torch.stack(seg_targets_ls, dim=0).cuda()
+            semantic_section = F.interpolate(seg_labels_section, (mask_h, mask_w), mode='bilinear',
+                                             align_corners=False).gt(0.5)
+
+            semantic_target = torch.zeros((batch_size, mask_h, mask_w), requires_grad=False,
+                                          device=semantic_pred.device)
+            for b_ in range(b):
+                for cls in range(1, self.segcls):
+                    semantic_target[b_][semantic_section[b_, cls]] = cls
+            loss_s = self.cross_entropy_loss2d(semantic_pred, semantic_target.long())
+
+            # semantic_target = torch.zeros((batch_size, self.num_classes, mask_h, mask_w), requires_grad=False,
+            #                               device=semantic_pred.device)
+            # for b_ in range(b):
+            #     for cls in range(0, self.num_classes):
+            #         semantic_target[b_, cls][semantic_section[b_, cls+1]] = 0
+            # loss_s = self.bce_with_logitsloss(semantic_pred, semantic_target)
+            # loss_s = loss_s / mask_h / mask_w / batch_size
 
             proto_h, proto_w = seg_proto.shape[1:3]  # 320--> 80,80,32
             for bb in range(batch_size):
-                downsampled_mask = F.interpolate(seg_targets[bb], (proto_h, proto_w), mode='bilinear',
-                                            align_corners=False).squeeze(0)
-                downsampled_mask = downsampled_mask.gt(0.5).float()
-                downsampled_mask = downsampled_mask.permute(1, 2, 0).contiguous()
                 fg_mask, pos_anchor_box = fg_masks_ls[bb], reg_targets_ls[bb]
+                cur_class_gt = cls_targets_ls[bb].long()
+                if pos_anchor_box.size(0) == 0:
+                    continue
+                proto_section = F.interpolate(seg_labels_section[bb].unsqueeze(0), (proto_h, proto_w), mode='bilinear',
+                                              align_corners=False).gt(0.5).float().squeeze(0)
 
                 pos_coef = seg_preds[bb].view(-1, self.coef_dim)[fg_mask]
                 mask_p = seg_proto[bb] @ pos_coef.t()
-                mask_p, anchor_area = self.crop(mask_p, pos_anchor_box.clone())  # /4
-                mask_loss = self.seg_loss(mask_p, downsampled_mask)
-                mask_loss = mask_loss.sum(dim=(0, 1))# / anchor_area
+                mask_p, anchor_area = self.crop(mask_p, pos_anchor_box.clone())
+
+                proto_section_ls = []
+                for cls in cur_class_gt:
+                    proto_section_ls.append(proto_section[cls + 1])
+                proto_section = torch.stack(proto_section_ls, dim=-1).contiguous()
+                proto_section, _ = self.crop(proto_section, pos_anchor_box.clone())
+
+                mask_loss = self.bce_with_logitsloss(mask_p, proto_section)
+                mask_loss = mask_loss.sum(dim=(0, 1))  # / anchor_area
                 loss_m += torch.sum(mask_loss)
-            del seg_targets, downsampled_mask
-            loss_m = loss_m / proto_h / proto_w / num_fg# * 4.125
+            del seg_targets, proto_section
+            loss_m = loss_m / proto_h / proto_w / num_fg  # * 6.125
 
             loss_seg = loss_m + loss_s
         else:
@@ -832,17 +857,10 @@ class YOLOXHead(nn.Module):
         ]
         return num_fg, gt_matched_classes, pred_ious_this_matching, matched_gt_inds
 
-    def crop(self, masks, boxes, padding=1, cxcywh=True):
-        """
-        "Crop" predicted masks by zeroing out everything not in the predicted bbox.
-        Args:
-            - masks should be a size [h, w, n] tensor of masks
-            - boxes should be a size [n, 4] tensor of bbox coords in relative point form
-        """
-        # if cxcywh:
+    def crop(self, masks, boxes, padding=1):
         box_corner = boxes.new(boxes.shape)
         w, h = boxes[..., 2], boxes[..., 3]
-        area = w/4 * h/4
+        area = w / 4 * h / 4
         box_corner[..., 0] = (boxes[..., 0] - w / 2)
         box_corner[..., 1] = (boxes[..., 1] - h / 2)
         box_corner[..., 2] = (boxes[..., 0] + w / 2)
@@ -861,9 +879,7 @@ class YOLOXHead(nn.Module):
         masks_right = rows < x2.view(1, 1, -1)
         masks_up = cols >= y1.view(1, 1, -1)
         masks_down = cols < y2.view(1, 1, -1)
-
         crop_mask = masks_left * masks_right * masks_up * masks_down
-
         return masks * crop_mask.float(), area
 
     def sanitize_coordinates(self, _x1, _x2, img_size, padding=0):

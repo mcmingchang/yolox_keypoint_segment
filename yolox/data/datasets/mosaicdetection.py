@@ -108,13 +108,11 @@ class MosaicDetection(Dataset):
                 seg = cv2.resize(
                     seg, (int(w0 * scale), int(h0 * scale)), interpolation=cv2.INTER_NEAREST
                 )
-                if len(seg.shape) == 2:
-                    seg = np.expand_dims(seg, axis=-1)
                 # generate output mosaic image
                 (h, w, c) = img.shape[:3]
                 if i_mosaic == 0:
                     mosaic_img = np.full((input_h * 2, input_w * 2, c), 114, dtype=np.uint8)
-                    mosaic_seg = np.full((input_h * 2, input_w * 2, seg.shape[-1]), 0, dtype=np.uint8) if self.segcls > 0 else np.array([])
+                    mosaic_seg = np.full((input_h * 2, input_w * 2, 1), 0, dtype=np.uint8) if self.segcls > 0 else np.array([])
                 # suffix l means large image, while s means small image in mosaic aug.
                 (l_x1, l_y1, l_x2, l_y2), (s_x1, s_y1, s_x2, s_y2) = get_mosaic_coordinate(
                     mosaic_img, i_mosaic, xc, yc, w, h, input_h, input_w
@@ -122,7 +120,7 @@ class MosaicDetection(Dataset):
 
                 mosaic_img[l_y1:l_y2, l_x1:l_x2] = img[s_y1:s_y2, s_x1:s_x2]
                 if self.segcls > 0:
-                    mosaic_seg[l_y1:l_y2, l_x1:l_x2] = seg[s_y1:s_y2, s_x1:s_x2]  # ????????
+                    mosaic_seg[l_y1:l_y2, l_x1:l_x2, 0] = seg[s_y1:s_y2, s_x1:s_x2]
                 padw, padh = l_x1 - s_x1, l_y1 - s_y1
 
                 labels = _labels.copy()
@@ -177,8 +175,7 @@ class MosaicDetection(Dataset):
 
             if (self.enable_mixup and not len(mosaic_labels) == 0 and random.random() < self.mixup_prob) and self.segcls==0:
                 mosaic_img, mosaic_labels = self.mixup(mosaic_img, mosaic_labels, self.input_dim)
-            if len(mosaic_seg.shape) == 2:
-                mosaic_seg = np.expand_dims(mosaic_seg, axis=-1)
+            mosaic_seg = np.expand_dims(mosaic_seg, axis=-1)
             mix_img, padded_labels, mosaic_seg = self.preproc(mosaic_img, mosaic_labels, self.input_dim, mosaic_seg)
             img_info = (mix_img.shape[1], mix_img.shape[0])
             return mix_img, padded_labels, img_info, img_id, mosaic_seg

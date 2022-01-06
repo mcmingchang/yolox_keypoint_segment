@@ -202,28 +202,26 @@ class COCODataset(Dataset):
 
         num_objs = len(objs)
         res = np.zeros((num_objs, 5+self.keypoints*2))
-        seg_res = [] if self.segcls > 0 else None
+        seg_res = np.zeros((height, width, 1)) if self.segcls > 0 else None
         for ix, obj in enumerate(objs):
             cls = self.class_ids.index(obj["category_id"])
             res[ix, 0:4] = obj["clean_bbox"]
-            res[ix, 4] = cls
+            res[ix, 4] = cls  # 从0开始
             if self.keypoints > 0:
                 res[ix, 5:] = obj["clean_pts"]
             if self.segcls > 0:
-                seg_res.append(obj['clean_segs'])
+                seg_res[obj['clean_segs'] > 0] = cls+1
 
         r = min(self.img_size[0] / height, self.img_size[1] / width)  # 坐标归一化
         res[:, :4] *= r
         if self.keypoints > 0:
             res[:, 5:] *= r
         if self.segcls > 0:
-            seg_res = np.stack(seg_res, axis=-1)
             seg_res = cv2.resize(
                 seg_res,
                 (int(width * r), int(height * r)),
                 interpolation=cv2.INTER_NEAREST).astype(np.uint8)
-            if len(seg_res.shape) == 2:
-                seg_res = np.expand_dims(seg_res, axis=-1)
+            seg_res = np.expand_dims(seg_res, axis=-1)
 
         img_info = (height, width)
         resized_info = (int(height * r), int(width * r))

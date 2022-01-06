@@ -142,35 +142,6 @@ class YOLOPAFPN(nn.Module):
             outputs = (pan_out2, pan_out1, pan_out0)
         else:
             [x3, x2, x1, x0] = features  # 尺寸从大到小
-            # fpn_out0 = self.lateral_conv0(x0)  # in:512,10,10  out:v,10,10
-            # f_out0 = self.upsample(fpn_out0)  # in:256,10,10  out:256,20,20
-            # f_out0 = torch.cat([f_out0, x1], 1)  # in:256,20,20  out:512,20,20
-            # f_out0 = self.C3_p4(f_out0)  # in:512,20,20  out:256,20,20
-            #
-            # fpn_out1 = self.reduce_conv1(f_out0)  # in:256,20,20  out:128,20,20
-            # f_out1 = self.upsample(fpn_out1)  # in:128,20,20  out:128,40,40
-            # f_out1 = torch.cat([f_out1, x2], 1)  # in::128,40,40  out:256,40,40
-            # f_out1 = self.C3_p3(f_out1)  # in:256,40,40  out:128,40,40
-            #
-            # fpn_out2 = self.reduce_conv2(f_out1)  # in:128,40,40  out:64,40,40
-            # f_out2 = self.upsample(fpn_out2)  # in:64,40,40  out:64,80,80
-            # f_out2 = torch.cat([f_out2, x3], 1)  # in::64,80,80  out:128,80,80
-            # pan_out3 = self.C3_p2(f_out2)  # in:128,80,80  out:64,80,80
-            #
-            # p_out2 = self.bu_conv3(pan_out3)  # in:64,80,80  out:64,40,40
-            # p_out2 = torch.cat([p_out2, fpn_out2], 1)  # int:64,40,40  out:128,40,40
-            # pan_out2 = self.C3_n2(p_out2)  # in:128,40,40  out:128,40,40
-            #
-            # p_out1 = self.bu_conv2(pan_out2)  # in:128,40,40  out:128,20,20
-            # p_out1 = torch.cat([p_out1, fpn_out1], 1)  # int:128,20,20  out:256,20,20
-            # pan_out1 = self.C3_n3(p_out1)  # in:256,20,20  out:256,20,20
-            #
-            # p_out0 = self.bu_conv1(pan_out1)  # in:256,20,20  out:256,10,10
-            # p_out0 = torch.cat([p_out0, fpn_out0], 1)  # in:256,10,10  out:512,10,10
-            # pan_out0 = self.C3_n4(p_out0)  # in:512,10,10  out:512,10,10
-            #
-            # outputs = (pan_out3, pan_out2, pan_out1, pan_out0)
-
             fpn_out0 = self.lateral_conv0(x0)  # in:512,10,10  out:v,10,10
             f_out0 = self.upsample(fpn_out0)  # in:256,10,10  out:256,20,20
             f_out0 = torch.cat([f_out0, x1], 1)  # in:256,20,20  out:512,20,20
@@ -179,7 +150,16 @@ class YOLOPAFPN(nn.Module):
             fpn_out1 = self.reduce_conv1(f_out0)  # in:256,20,20  out:128,20,20
             f_out1 = self.upsample(fpn_out1)  # in:128,20,20  out:128,40,40
             f_out1 = torch.cat([f_out1, x2], 1)  # in::128,40,40  out:256,40,40
-            pan_out2 = self.C3_p3(f_out1)  # in:256,40,40  out:128,40,40
+            f_out1 = self.C3_p3(f_out1)  # in:256,40,40  out:128,40,40
+
+            fpn_out2 = self.reduce_conv2(f_out1)  # in:128,40,40  out:64,40,40
+            f_out2 = self.upsample(fpn_out2)  # in:64,40,40  out:64,80,80
+            f_out2 = torch.cat([f_out2, x3], 1)  # in::64,80,80  out:128,80,80
+            pan_out3 = self.C3_p2(f_out2)  # in:128,80,80  out:64,80,80
+
+            p_out2 = self.bu_conv3(pan_out3)  # in:64,80,80  out:64,40,40
+            p_out2 = torch.cat([p_out2, fpn_out2], 1)  # int:64,40,40  out:128,40,40
+            pan_out2 = self.C3_n2(p_out2)  # in:128,40,40  out:128,40,40
 
             p_out1 = self.bu_conv2(pan_out2)  # in:128,40,40  out:128,20,20
             p_out1 = torch.cat([p_out1, fpn_out1], 1)  # int:128,20,20  out:256,20,20
@@ -189,6 +169,6 @@ class YOLOPAFPN(nn.Module):
             p_out0 = torch.cat([p_out0, fpn_out0], 1)  # in:256,10,10  out:512,10,10
             pan_out0 = self.C3_n4(p_out0)  # in:512,10,10  out:512,10,10
 
-            outputs = (x3, pan_out2, pan_out1, pan_out0)
+            outputs = (pan_out3, pan_out2, pan_out1, pan_out0)
 
         return outputs

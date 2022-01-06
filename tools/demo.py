@@ -12,7 +12,7 @@ import cv2
 import torch
 import numpy as np
 from yolox.data.data_augment import ValTransform
-from yolox.data.datasets import COCO_CLASSES
+from yolox.data.datasets import COCO_CLASSES, PLATE_CLASSES
 from yolox.exp import get_exp
 from yolox.utils import fuse_model, get_model_info, postprocess, vis
 import torch.nn.functional as F
@@ -124,7 +124,7 @@ class Predictor(object):
             self,
             model,
             exp,
-            cls_names=COCO_CLASSES,
+            cls_names=PLATE_CLASSES,
             trt_file=None,
             decoder=None,
             device="cpu",
@@ -217,7 +217,7 @@ class Predictor(object):
             masks = masks.permute(2, 0, 1).contiguous()
             seg = F.interpolate(masks.unsqueeze(0), (int(sh * 4 / ratio), int(sw * 4 / ratio)), mode='bilinear',
                                 align_corners=False).squeeze(0).gt_(0.5).cpu().numpy()
-            seg = seg * cls.numpy()[:, None, None]
+            seg = seg * (cls.numpy()+1)[:, None, None]
             seg = seg.astype('int').sum(axis=0)[:h, :w]
         else:
             seg = []
@@ -389,7 +389,7 @@ def main(exp, args):
         trt_file = None
         decoder = None
 
-    predictor = Predictor(model, exp, COCO_CLASSES, trt_file, decoder, args.device,
+    predictor = Predictor(model, exp, PLATE_CLASSES, trt_file, decoder, args.device,
                           args.fp16, args.legacy, args.keypoints, args.segs)
     current_time = time.localtime()
     if args.demo == "image":

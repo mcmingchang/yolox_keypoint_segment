@@ -113,8 +113,8 @@ def convert(xml_list, json_file):
     print("------------create {} done--------------".format(json_file))
     print("find {} categories: {} -->>> your pre_define_categories {}: {}".format(len(all_categories), all_categories.keys(), len(pre_define_categories), pre_define_categories.keys()))
     print("category: id --> {}".format(categories))
-    print(categories.keys())
-    print(categories.values())
+    # print(categories.keys())
+    # print(categories.values())
  
  
 if __name__ == '__main__':
