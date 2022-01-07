@@ -13,22 +13,23 @@ from ..dataloading import get_yolox_datadir
 from .datasets_wrapper import Dataset
 from .generate_wall_data import RandomDataset
 
+
 class COCODataset(Dataset):
     """
     COCO dataset class.
     """
 
     def __init__(
-        self,
-        data_dir=None,
-        json_file="instances_train2017.json",
-        name="train2017",
-        img_size=(416, 416),
-        preproc=None,
-        cache=False,
-        keypoints=0,
-        segcls=0,
-        random_dataset=None
+            self,
+            data_dir=None,
+            json_file="instances_train2017.json",
+            name="train2017",
+            img_size=(416, 416),
+            preproc=None,
+            cache=False,
+            keypoints=0,
+            segcls=0,
+            random_dataset=None
     ):
         """
         COCO dataset initialization. Annotation data are read into memory by COCO API.
@@ -54,9 +55,9 @@ class COCODataset(Dataset):
 
         if random_dataset:
             cate_ls, mask_order, cate_id, total = random_dataset['cate_ls'], \
-                                           random_dataset['mask_order'], \
-                                           random_dataset['cate_id'], \
-                                           random_dataset['total']
+                                                  random_dataset['mask_order'], \
+                                                  random_dataset['cate_id'], \
+                                                  random_dataset['total']
             self.randdataset = RandomDataset(self.data_dir, cate_ls,
                                              mask_order, cate_id)
             self.class_ids = sorted(self.randdataset.pre_define_categories.values())
@@ -77,7 +78,6 @@ class COCODataset(Dataset):
 
     def __del__(self):
         del self.imgs
-        # pass
 
     def _load_coco_annotations(self):
         return [self.load_anno_from_ids(_ids) for _ids in self.ids]
@@ -90,11 +90,11 @@ class COCODataset(Dataset):
             if '+' in segm:
                 seg_ = segm.split('+')
                 for se_ in seg_:
-                    se_ = np.array(se_.split(','), np.int)
+                    se_ = np.array(se_.split(','), int)
                     font_array = np.array([[[se_[i], se_[i + 1]] for i in range(0, len(se_), 2)]])
                     cv2.fillPoly(bg, np.array(font_array), 1)
             else:
-                segm = np.array(segm.split(','), np.int)
+                segm = np.array(segm.split(','), int)
                 font_array = [[[segm[i], segm[i + 1]] for i in range(0, len(segm), 2)]]
                 if num == 0:
                     cv2.fillPoly(bg, np.array(font_array), 1)
@@ -149,13 +149,15 @@ class COCODataset(Dataset):
             mode="r+",
         )
 
-
     def load_anno_from_ids(self, id_):
         if self.random_dataset:
             try:
                 img, box_ls = self.randdataset.get_train_data()
             except:
-                img, box_ls = self.randdataset.get_train_data()
+                try:
+                    img, box_ls = self.randdataset.get_train_data()
+                except:
+                    img, box_ls = self.randdataset.get_train_data()
             height, width, _ = img.shape
             im_ann = {'height': height, 'width': width}
             annotations = []
@@ -163,7 +165,7 @@ class COCODataset(Dataset):
                 for box in box_ls:
                     xy, segmentations = box.split("/")
                     list_xy = xy.split(",")
-                    x1, y1, x2, y2, classes = np.array(list_xy[0:5], np.int)
+                    x1, y1, x2, y2, classes = np.array(list_xy[0:5], int)
                     segmentations = [segmentation for segmentation in segmentations.split('*')]
                     o_height, o_width = abs(y2 - y1), abs(x2 - x1)
                     ann = {'area': o_width * o_height, 'id': 1,
@@ -201,7 +203,7 @@ class COCODataset(Dataset):
                 objs.append(obj)
 
         num_objs = len(objs)
-        res = np.zeros((num_objs, 5+self.keypoints*2))
+        res = np.zeros((num_objs, 5 + self.keypoints * 2))
         seg_res = np.zeros((height, width, 1)) if self.segcls > 0 else None
         for ix, obj in enumerate(objs):
             cls = self.class_ids.index(obj["category_id"])
@@ -210,7 +212,7 @@ class COCODataset(Dataset):
             if self.keypoints > 0:
                 res[ix, 5:] = obj["clean_pts"]
             if self.segcls > 0:
-                seg_res[obj['clean_segs'] > 0] = cls+1
+                seg_res[obj['clean_segs'] > 0] = cls + 1
 
         r = min(self.img_size[0] / height, self.img_size[1] / width)  # 坐标归一化
         res[:, :4] *= r

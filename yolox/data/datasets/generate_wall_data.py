@@ -70,7 +70,7 @@ class RandomDataset:
                         polygon = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]])
                     polygon[:, 0] = np.clip(polygon[:, 0], 0, new_w)
                     for point in polygon:
-                        x, y = point.astype(np.int)
+                        x, y = point.astype(int)
                         x_ls.append(x)
                         y_ls.append(y)
                         seg_ls.extend([str(x), str(y)])
@@ -80,7 +80,6 @@ class RandomDataset:
                         continue
                     box_ls.append(f'{x1},{y1},{x2},{y2},{self.pre_define_categories[cate]}/{",".join(seg_ls)}')
             else:
-                # img = cv2.imread(f'{self.path}/{img_name}')
                 img = Image.open(f'{self.path}/{img_name}')
                 img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
@@ -127,7 +126,6 @@ class RandomDataset:
                         polygon = np.expand_dims(polygon, axis=0)
                         cv2.fillPoly(mask_dict[cate], polygon.astype(np.int32), self.cate_id[cate])
                 else:
-                    # img = cv2.imread(f'{self.path}/{img_name}')
                     img = Image.open(f'{self.path}/{img_name}')
                     img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
@@ -179,7 +177,7 @@ class RandomDataset:
                     x_ls, y_ls, seg_ls = [], [], []
                     contour = np.transpose(contour, (1, 0, 2))
                     for item in contour[0]:
-                        x, y = item.astype(np.int)
+                        x, y = item.astype(int)
                         x_ls.append(x)
                         y_ls.append(y)
                         seg_ls.extend([str(x), str(y)])

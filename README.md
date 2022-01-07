@@ -130,6 +130,17 @@ python tools/train.py -n yolox-s -d 8 -b 64 --fp16 -o [--cache]
                          yolox-l
                          yolox-x
 ```
+
+yolox with keypoints
+```shell
+python tools/train.py -n yolox-kp -d 8 -b 64 --fp16 -o [--cache]
+```
+
+yolox with segment , dont use --fp16
+```shell
+python tools/train.py -n yolox-seg -d 8 -b 64 -o [--cache]
+```
+
 * -d: number of gpu devices
 * -b: total batch size, the recommended number for -b is num-gpu * 8
 * --fp16: mixed precision training
@@ -173,6 +184,7 @@ python tools/eval.py -n  yolox-s -c yolox_s.pth -b 64 -d 8 --conf 0.001 [--fp16]
                          yolox-l
                          yolox-x
 ```
+
 * --fuse: fuse conv and bn
 * -d: number of GPUs used for evaluation. DEFAULT: All GPUs available will be used.
 * -b: total batch size across on all GPUs
@@ -184,6 +196,16 @@ python tools/eval.py -n  yolox-s -c yolox_s.pth -b 1 -d 1 --conf 0.001 --fp16 --
                          yolox-l
                          yolox-x
 ```
+
+yolox with keypoints
+```shell
+python tools/demo.py image -n yolox-kp -kp -c yolox_s.pth --path imgs/kps --conf 0.25 --nms 0.45 --tsize 320 --save_result --device cpu
+```
+yolox with segment
+```shell
+python tools/demo.py image -n yolox-seg -seg -c last_epoch_ckpt.pth --path imgs/segs --conf 0.25 --nms 0.45 --tsize 320 --save_result --device cpu
+```
+
 
 </details>
 
