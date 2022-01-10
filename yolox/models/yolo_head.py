@@ -571,28 +571,18 @@ class YOLOXHead(nn.Module):
                     semantic_target[b_][semantic_section[b_, cls]] = cls
             loss_s = self.cross_entropy_loss2d(semantic_pred, semantic_target.long())
 
-            if torch.isnan(loss_s):
-                print('loss_s is nan')
-
-            # semantic_target = torch.zeros((batch_size, self.num_classes, mask_h, mask_w), requires_grad=False,
-            #                               device=semantic_pred.device)
-            # for b_ in range(b):
-            #     for cls in range(0, self.num_classes):
-            #         semantic_target[b_, cls][semantic_section[b_, cls+1]] = 1
-            # loss_s = self.bcewithlog_loss(semantic_pred, semantic_target)
-            # loss_s = loss_s / mask_h / mask_w / batch_size
 
             proto_h, proto_w = seg_proto.shape[1:3]  # 320--> 80,80,32
             for bb in range(batch_size):
                 fg_mask, pos_anchor_box = fg_masks_ls[bb], reg_targets_ls[bb]
-                cur_class_gt = cls_targets_ls[bb].long()
                 if pos_anchor_box.size(0) == 0:
                     continue
+                cur_class_gt = cls_targets_ls[bb].long()
                 proto_section = F.interpolate(seg_labels_section[bb].unsqueeze(0), (proto_h, proto_w), mode='bilinear',
                                               align_corners=False).gt(0.5).float().squeeze(0)
 
-                pos_coef = seg_preds[bb].view(-1, self.coef_dim)[fg_mask].float()
-                mask_p = seg_proto[bb].float() @ pos_coef.t()
+                pos_coef = seg_preds[bb].view(-1, self.coef_dim)[fg_mask]
+                mask_p = seg_proto[bb] @ pos_coef.t()
 
                 mask_p, anchor_area = self.crop(mask_p, pos_anchor_box.clone())
 
@@ -602,7 +592,7 @@ class YOLOXHead(nn.Module):
                 proto_section = torch.stack(proto_section_ls, dim=-1).contiguous()
                 proto_section, _ = self.crop(proto_section, pos_anchor_box.clone())
 
-                mask_loss = self.bcewithlog_loss(mask_p.float(), proto_section.float())
+                mask_loss = self.bcewithlog_loss(mask_p, proto_section)
                 mask_loss = mask_loss.sum(dim=(0, 1)) / anchor_area
                 loss_m += torch.sum(mask_loss)
             loss_m = loss_m / proto_h / proto_w / num_fg * 6.125
@@ -885,9 +875,9 @@ class YOLOXHead(nn.Module):
         masks_right = rows < x2.view(1, 1, -1)
         masks_up = cols >= y1.view(1, 1, -1)
         masks_down = cols < y2.view(1, 1, -1)
-        crop_mask = (masks_left * masks_right * masks_up * masks_down) * 1
+        crop_mask = masks_left * masks_right * masks_up * masks_down
 
-        return masks * crop_mask, area
+        return masks * crop_mask.float(), area
 
     def sanitize_coordinates(self, _x1, _x2, img_size, padding=0):
         """

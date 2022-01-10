@@ -163,14 +163,14 @@ class COCODataset(Dataset):
             annotations = []
             if len(box_ls) > 0:
                 for box in box_ls:
-                    xy, segmentations = box.split("/")
+                    xy, segmentations = box.split("/seg/")
                     list_xy = xy.split(",")
                     x1, y1, x2, y2, classes = np.array(list_xy[0:5], int)
-                    segmentations = [segmentation for segmentation in segmentations.split('*')]
+                    mask_data = {'size': [height, width], 'counts': segmentations}
                     o_height, o_width = abs(y2 - y1), abs(x2 - x1)
                     ann = {'area': o_width * o_height, 'id': 1,
                            'bbox': [x1, y1, o_width, o_height], 'category_id': classes,
-                           'segmentation': segmentations}
+                           'segmentation': mask_data}
                     annotations.append(ann)
         else:
             im_ann = self.coco.loadImgs(id_)[0]
@@ -192,7 +192,7 @@ class COCODataset(Dataset):
                     pts[i, 1] = np.min((height, np.max((0, pts[i, 1]))))
                 xy_pts = pts[:, :2].reshape(-1)
             if self.segcls > 0:
-                segs = self.annToFontMask(im_ann, obj)
+                segs = self.coco.annToMask(obj)
 
             if obj["area"] > 0 and x2 >= x1 and y2 >= y1:
                 obj["clean_bbox"] = [x1, y1, x2, y2]

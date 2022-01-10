@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 path2 = "."
 START_BOUNDING_BOX_ID = 1
  
- 
+from pycocotools.coco import COCO
 def get(root, name):
     return root.findall(name)
  
@@ -83,8 +83,8 @@ def convert(xml_list, json_file):
                        'segmentation': [], 'keypoints': keypoints, 'num_keypoints': 4}
 
             elif get_segmentation is True:
-                segmentations = get_and_check(obj, 'segmentation', 1).text.split('*')
-                segmentation = [segmentation for segmentation in segmentations]
+                segmentations = get_and_check(obj, 'segmentation', 1).text
+                segmentation = {'size': [height, width], 'counts': segmentations}
 
                 ann = {'area': o_width * o_height, 'iscrowd': 0, 'image_id':
                     image_id, 'bbox': [xmin, ymin, o_width, o_height],

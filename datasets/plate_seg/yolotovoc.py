@@ -46,7 +46,7 @@ class XmlMaker:
 
             for xy in xys:
                 if self.segmentation:
-                    xy, segmentations = xy.split("/")
+                    xy, segmentations = xy.split("/seg/")
                     list_xy = xy.split(",")
                     x_min = list_xy[0]
                     y_min = list_xy[1]

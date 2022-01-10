@@ -2,7 +2,7 @@ import numpy as np
 import cv2, os, json, shutil, base64, random
 from io import BytesIO
 from PIL import Image
-
+from pycocotools.mask import encode, decode
 
 ##### 数据生成
 def read_base64(base64_str):
@@ -75,10 +75,16 @@ class RandomDataset:
                         y_ls.append(y)
                         seg_ls.extend([str(x), str(y)])
 
+                    mask = np.zeros((h, new_w), np.uint8)
+                    cv2.fillPoly(mask, [np.array(polygon, int)], 1)
+                    mask_merge = np.asfortranarray(mask)
+                    mask_str = encode(mask_merge)
+                    mask_str = str(mask_str['counts'], 'utf-8')
+
                     x1, y1, x2, y2 = np.min(x_ls), np.min(y_ls), np.max(x_ls), np.max(y_ls)
                     if x2 <= x1 or y2 <= y1:
                         continue
-                    box_ls.append(f'{x1},{y1},{x2},{y2},{self.pre_define_categories[cate]}/{",".join(seg_ls)}')
+                    box_ls.append(f'{x1},{y1},{x2},{y2},{self.pre_define_categories[cate]}/seg/{mask_str}')
             else:
                 img = Image.open(f'{self.path}/{img_name}')
                 img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
@@ -171,7 +177,7 @@ class RandomDataset:
                 cate_mask = np.zeros((140, new_w), np.uint8)
                 cate_mask[split_mask == self.cate_id[cate_name]] = 255
                 contours = cv2.findContours(np.array(cate_mask, np.uint8), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)[
-                    -2]  # RETR_EXTERNAL  RETR_TREE
+                    -2]
 
                 for contour in contours:
                     x_ls, y_ls, seg_ls = [], [], []
@@ -180,7 +186,7 @@ class RandomDataset:
                         x, y = item.astype(int)
                         x_ls.append(x)
                         y_ls.append(y)
-                        seg_ls.extend([str(x), str(y)])
+                        seg_ls.append(item)
 
                     if len(x_ls) > 0:
                         x1, y1, x2, y2 = np.min(x_ls), np.min(y_ls), np.max(x_ls), np.max(y_ls)
@@ -189,7 +195,12 @@ class RandomDataset:
                             continue
                         if x2 <= x1 or y2 <= y1:
                             continue
-                        box_ls.append(f'{x1},{y1},{x2},{y2},{self.pre_define_categories[cate_name]}/{",".join(seg_ls)}')
+                        out_mask = np.zeros((140, new_w), np.uint8)
+                        cv2.fillPoly(out_mask, [np.array(seg_ls, int)], 1)
+                        mask_merge = np.asfortranarray(out_mask)
+                        mask_str = encode(mask_merge)
+                        mask_str = str(mask_str['counts'], 'utf-8')
+                        box_ls.append(f'{x1},{y1},{x2},{y2},{self.pre_define_categories[cate_name]}/seg/{mask_str}')
             return new_img, box_ls
 
 
@@ -211,17 +222,16 @@ if __name__ == '__main__':
         h, w = left.shape[:2]
         mask = np.zeros((h, w, 3))
         for box in box_ls:
-            xy, segmentations = box.split("/")
+            xy, segmentations = box.split("/seg/")
             list_xy = xy.split(",")
             x_min = list_xy[0]
             y_min = list_xy[1]
             x_max = list_xy[2]
             y_max = list_xy[3]
             classes = list_xy[4]
-            segmentation = np.array(
-                [[int(i) for i in segmentation.split(',')] for segmentation in segmentations.split('*')]).reshape(-1, 2)
-            segmentation = np.expand_dims(segmentation, axis=0)
-            cv2.fillPoly(mask, segmentation.astype(np.int32), color[dataset.cate_ls[int(classes) - 1]])
+            mask_data = {'size': [h, w], 'counts': segmentations}
+            new_mask = decode(mask_data)
+            mask[new_mask>0] = color[dataset.cate_ls[int(classes) - 1]]
         cv2.imshow('1', left)
         cv2.imshow('2', right)
 
