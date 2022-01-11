@@ -10,7 +10,6 @@ from loguru import logger
 import torch
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
-import torch.nn as nn
 from yolox.data import DataPrefetcher
 from yolox.utils import (
     MeterBuffer,
@@ -165,7 +164,7 @@ class Trainer:
 
         if self.is_distributed:
             model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False,
-                        find_unused_parameters=True)
+                        find_unused_parameters=False)
 
         if self.use_model_ema:
             self.ema_model = ModelEMA(model, 0.9998)

@@ -216,7 +216,7 @@ if __name__ == '__main__':
     dataset = RandomDataset(data_dir, cate_ls, mask_order, cate_id)
     for i in range(100):
         img, box_ls = dataset.get_train_data()
-        # cv2.imwrite(f'plaster/{i}.png', img)
+        # cv2.imwrite(f'masonry/{i}.png', img)
         left = img[:, :, 0:3].astype(np.uint8)
         right = img[:, :, -1]
         h, w = left.shape[:2]

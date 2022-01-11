@@ -12,7 +12,7 @@ from pycocotools.coco import COCO
 from ..dataloading import get_yolox_datadir
 from .datasets_wrapper import Dataset
 from .generate_wall_data import RandomDataset
-
+from pycocotools import mask as maskUtils
 
 class COCODataset(Dataset):
     """
@@ -192,7 +192,10 @@ class COCODataset(Dataset):
                     pts[i, 1] = np.min((height, np.max((0, pts[i, 1]))))
                 xy_pts = pts[:, :2].reshape(-1)
             if self.segcls > 0:
-                segs = self.coco.annToMask(obj)
+                if self.random_dataset:
+                    segs = maskUtils.decode(obj['segmentation'])
+                else:
+                    segs = self.coco.annToMask(obj)
 
             if obj["area"] > 0 and x2 >= x1 and y2 >= y1:
                 obj["clean_bbox"] = [x1, y1, x2, y2]
