@@ -2,10 +2,10 @@
 <img src="assets/demo.png" >
 
 ## Introduction
-* 关键点版本：已完成
-* 全景分割版本：已完成
-* 实例分割版本：已完成
-
+- [x] YOLOX with keypoints
+- [x] YOLOX with instance segmentation
+- [x] YOLOX with panoptic segmentation
+- [x] YOLOX-CoAtNet
 
 YOLOX is an anchor-free version of YOLO, with a simpler design but better performance! It aims to bridge the gap between research and industrial communities.
 For more details, please refer to our [report on Arxiv](https://arxiv.org/abs/2107.08430).
