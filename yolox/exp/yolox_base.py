@@ -24,6 +24,7 @@ class Exp(BaseExp):
         self.img_channel = 3
         self.in_channels = [256, 512, 1024]
         self.in_features = ("dark3", "dark4", "dark5")
+        self.backbone_name = 'CSPDarknet'
 
         self.data_num_workers = 4
         self.pin_memory = True
@@ -84,7 +85,8 @@ class Exp(BaseExp):
         if getattr(self, "model", None) is None:
 
             backbone = YOLOPAFPN(self.img_channel, self.depth, self.width, in_channels=self.in_channels,
-                                 in_features=self.in_features)
+                                 in_features=self.in_features, backbone_name=self.backbone_name,
+                                 input_size=self.input_size)
             head = YOLOXHead(self.num_classes, self.width, in_channels=self.in_channels,
                              keypoints=self.keypoints, segcls=self.segcls)
             self.model = YOLOX(backbone, head)

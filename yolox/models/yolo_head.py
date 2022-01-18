@@ -185,17 +185,16 @@ class YOLOXHead(nn.Module):
                     )
                 )
 
-                self.use_l1 = False
-                self.l1_loss = nn.L1Loss(reduction="none")
-                self.bcewithlog_loss = nn.BCEWithLogitsLoss(reduction="none")
-                self.iou_loss = IOUloss(reduction="none")
-                self.lmk_loss = LandmarksLoss()
-                self.cross_entropy_loss2d = CrossEntropyLoss2d(ignore_index=-1)
-                # self.bce_with_logitsloss = nn.BCEWithLogitsLoss(reduction="none")
-                self.cross_entropy_loss = nn.CrossEntropyLoss(reduction="none")
-                self.strides = strides
-                self.grids = [torch.zeros(1)] * len(in_channels)
-                self.expanded_strides = [None] * len(in_channels)
+            self.use_l1 = False
+            self.l1_loss = nn.L1Loss(reduction="none")
+            self.bcewithlog_loss = nn.BCEWithLogitsLoss(reduction="none")
+            self.iou_loss = IOUloss(reduction="none")
+            self.lmk_loss = LandmarksLoss()
+            self.cross_entropy_loss2d = CrossEntropyLoss2d(ignore_index=-1)
+            self.cross_entropy_loss = nn.CrossEntropyLoss(reduction="none")
+            self.strides = strides
+            self.grids = [torch.zeros(1)] * len(in_channels)
+            self.expanded_strides = [None] * len(in_channels)
 
     def initialize_biases(self, prior_prob):
         for conv in self.cls_preds:
@@ -228,7 +227,6 @@ class YOLOXHead(nn.Module):
         expanded_strides = []
         seg_proto, semantic_pred = None, None
         if self.segcls > 0:
-
             seg_proto = self.proto_net(xin[0]).permute(0, 2, 3, 1).contiguous()  # feature map P3   放大2
             if self.training:
                 semantic_pred = self.semantic_seg_conv(xin[0])

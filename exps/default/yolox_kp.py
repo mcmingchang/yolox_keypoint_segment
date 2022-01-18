@@ -33,3 +33,7 @@ class Exp(MyExp):
         self.data_dir = 'datasets/plate_kp'
         self.mosaic_prob = 1
         self.adam = True
+
+        # self.backbone_name = 'CoAtNet'
+        # if self.backbone_name == 'CoAtNet':
+        #     self.multiscale_range = 0

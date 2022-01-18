@@ -214,6 +214,8 @@ def image_demo(predictor, vis_folder, path, current_time, save_result, draw_kp, 
     files.sort()
     for image_name in files:
         outputs, seg_outputs, img_info = predictor.inference(image_name)
+        if seg_outputs is None:
+            seg_outputs = [None for _ in range(len(outputs))]
         result_image, seg_mask = predictor.visual(outputs[0], seg_outputs[0], img_info,
                                         predictor.confthre, draw_kp, draw_seg)
         if save_result:

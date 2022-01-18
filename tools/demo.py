@@ -124,7 +124,7 @@ class Predictor(object):
             self,
             model,
             exp,
-            cls_names=PLATE_CLASSES,
+            cls_names=COCO_CLASSES,
             trt_file=None,
             decoder=None,
             device="cpu",
@@ -211,8 +211,8 @@ class Predictor(object):
         cls = output[:, 6]
         scores = output[:, 4] * output[:, 5]
         h, w, _ = img.shape
-        sh, sw = seg_output.shape[:2]
         if draw_seg:
+            sh, sw = seg_output.shape[:2]
             masks = torch.sigmoid(torch.matmul(seg_output, output[:, 7:].t()))
             masks = crop(masks, bboxes.clone(), mask_ratio=self.mask_ratio)
             masks = masks.permute(2, 0, 1).contiguous()
@@ -238,6 +238,8 @@ def image_demo(predictor, vis_folder, path, current_time, save_result, draw_kp, 
     files.sort()
     for image_name in files:
         outputs, seg_outputs, img_info = predictor.inference(image_name)
+        if seg_outputs is None:
+            seg_outputs = [None for _ in range(len(outputs))]
         result_image, seg_mask = predictor.visual(outputs[0], seg_outputs[0], img_info,
                                                   predictor.confthre, draw_kp, draw_seg)
         if save_result:
@@ -393,7 +395,7 @@ def main(exp, args):
         trt_file = None
         decoder = None
 
-    predictor = Predictor(model, exp, PLATE_CLASSES, trt_file, decoder, args.device,
+    predictor = Predictor(model, exp, COCO_CLASSES, trt_file, decoder, args.device,
                           args.fp16, args.legacy, args.keypoints, args.segs)
     current_time = time.localtime()
     if args.demo == "image":

@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 
 from .darknet import CSPDarknet
+from .coatnet import coatnet_0, coatnet_2
 from .network_blocks import BaseConv, CSPLayer, DWConv
 
 
@@ -23,9 +24,16 @@ class YOLOPAFPN(nn.Module):
         in_channels=[256, 512, 1024],
         depthwise=False,
         act="silu",
+        backbone_name='CSPDarknet',
+        input_size=(320, 320)
     ):
         super().__init__()
-        self.backbone = CSPDarknet(img_channel, depth, width, depthwise=depthwise, act=act, out_features=in_features)
+        if backbone_name == 'CoAtNet':
+            self.backbone = coatnet_0(img_shape=input_size, img_channel=img_channel, dep_mul=depth,
+                                      wid_mul=width, out_features=in_features)
+        else:
+            self.backbone = CSPDarknet(img_channel, depth, width, depthwise=depthwise,
+                                       act=act, out_features=in_features)
         self.in_features = in_features
         self.in_channels = in_channels
         Conv = DWConv if depthwise else BaseConv
