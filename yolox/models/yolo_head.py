@@ -39,6 +39,7 @@ class YOLOXHead(nn.Module):
         self.num_classes = num_classes
         self.keypoints = keypoints
         self.segcls = segcls
+        self.coef_dim = 32 if segcls>0 else 0
         self.decode_in_inference = True  # for deploy, set to False
 
         self.cls_convs = nn.ModuleList()
@@ -53,7 +54,6 @@ class YOLOXHead(nn.Module):
             self.lmk_preds = nn.ModuleList()
         Conv = DWConv if depthwise else BaseConv
         if self.segcls > 0:
-            self.coef_dim = 32
             self.proto_net = ProtoNet(in_channel=int(in_channels[0] * width), coef_dim=self.coef_dim, width=width)
             if self.training:
                 self.semantic_seg_conv = nn.Conv2d(int(in_channels[0] * width), self.segcls, kernel_size=1)
@@ -543,7 +543,8 @@ class YOLOXHead(nn.Module):
                        )
                    ).sum() / num_fg
         if self.keypoints > 0:
-            loss_lmk = self.lmk_loss(lmk_preds.view(-1, 2 * self.keypoints)[fg_masks], lmk_targets)
+            loss_lmk = self.lmk_loss(lmk_preds.view(-1, 2 * self.keypoints)[fg_masks], lmk_targets
+                                     )#.sum() / num_fg
         else:
             loss_lmk = 0
 

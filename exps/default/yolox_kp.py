@@ -11,14 +11,14 @@ class Exp(MyExp):
     def __init__(self):
         super(Exp, self).__init__()
         #### s
-        # self.depth = 0.33
-        # self.width = 0.50
+        self.depth = 0.33
+        self.width = 0.50
         # #### m
         # self.depth = 0.67
         # self.width = 0.75
         #### l
-        self.depth = 1.0
-        self.width = 1.0
+        # self.depth = 1.0
+        # self.width = 1.0
         #### x
         # self.depth = 1.33
         # self.width = 1.25
@@ -32,6 +32,7 @@ class Exp(MyExp):
         self.test_size = (320, 320)
         self.data_dir = 'datasets/plate_kp'
         self.mosaic_prob = 1
+        self.multiscale_range = 5
         self.adam = True
 
         # self.backbone_name = 'CoAtNet'
