@@ -138,7 +138,9 @@ class COCODataset(Dataset):
             pbar.close()
         else:
             logger.warning(
-                "You are using cached imgs! Make sure your dataset is not changed!!"
+                "You are using cached imgs! Make sure your dataset is not changed!!\n"
+                "Everytime the self.input_size is changed in your exp file, you need to delete\n"
+                "the cached data and re-generate them.\n"
             )
 
         logger.info("Loading cached imgs...")
@@ -217,7 +219,7 @@ class COCODataset(Dataset):
             if self.segcls > 0:
                 seg_res[obj['clean_segs'] > 0] = cls + 1
 
-        r = min(self.img_size[0] / height, self.img_size[1] / width)  # 坐标归一化
+        r = min(self.img_size[0] / height, self.img_size[1] / width)
         res[:, :4] *= r
         if self.keypoints > 0:
             res[:, 5:] *= r

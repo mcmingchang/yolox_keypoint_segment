@@ -21,15 +21,16 @@ class Exp(BaseExp):
         self.segcls = 0
         self.depth = 1.00
         self.width = 1.00
+        self.act = 'silu'
         self.img_channel = 3
         self.in_channels = [256, 512, 1024]
         self.in_features = ("dark3", "dark4", "dark5")
         self.backbone_name = 'CSPDarknet'
 
         self.data_num_workers = 4
-        self.pin_memory = True
         self.input_size = (640, 640)  # (height, width)
         self.multiscale_range = 5
+        self.pin_memory = True
         # 自定义随机生成器
         self.random_dataset = None
         self.cate_ls, self.mask_order, self.cate_id = [], [], []
@@ -85,9 +86,9 @@ class Exp(BaseExp):
         if getattr(self, "model", None) is None:
 
             backbone = YOLOPAFPN(self.img_channel, self.depth, self.width, in_channels=self.in_channels,
-                                 in_features=self.in_features, backbone_name=self.backbone_name,
+                                 in_features=self.in_features, backbone_name=self.backbone_name, act=self.act,
                                  input_size=self.input_size)
-            head = YOLOXHead(self.num_classes, self.width, in_channels=self.in_channels,
+            head = YOLOXHead(self.num_classes, self.width, in_channels=self.in_channels, act=self.act,
                              keypoints=self.keypoints, segcls=self.segcls)
             self.model = YOLOX(backbone, head)
 
@@ -148,7 +149,6 @@ class Exp(BaseExp):
             mosaic_scale=self.mosaic_scale,  # 尺度 (0.1, 2)
             mixup_scale=self.mixup_scale,  # 尺度 (0.5, 1.5)
             shear=self.shear,  # 裁剪 2.0
-            perspective=self.perspective,  # 透视 0
             enable_mixup=self.enable_mixup,  # 是否使用mixup
             mosaic_prob=self.mosaic_prob,  # 概率 1.0
             mixup_prob=self.mixup_prob,  # 概率 1.0
@@ -215,10 +215,10 @@ class Exp(BaseExp):
 
     def get_optimizer(self, batch_size):
         if "optimizer" not in self.__dict__:
-            if self.warmup_epochs > 0:  # 5
-                lr = self.warmup_lr  # 0
+            if self.warmup_epochs > 0:
+                lr = self.warmup_lr
             else:
-                lr = self.basic_lr_per_img * batch_size  # 0.01 / 64.0 *b
+                lr = self.basic_lr_per_img * batch_size
 
             pg0, pg1, pg2 = [], [], []  # optimizer parameter groups
 
@@ -232,8 +232,6 @@ class Exp(BaseExp):
             if self.adam:
                 optimizer = torch.optim.AdamW(pg0, lr=lr)
             else:
-                # optimizer = ZeroRedundancyOptimizer(pg0, optimizer_class=torch.optim.SGD, lr=lr,
-                #                                     momentum=self.momentum, nesterov=True)
                 optimizer = torch.optim.SGD(
                     pg0, lr=lr, momentum=self.momentum, nesterov=True
                 )

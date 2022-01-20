@@ -45,7 +45,6 @@ class Trainer:
         self.local_rank = get_local_rank()
         self.device = "cuda:{}".format(self.local_rank)
         self.use_model_ema = exp.ema
-        self.device_ids = [i for i in range(int(args.devices))]
 
         # data/dataloader related attr
         self.data_type = torch.float16 if args.fp16 else torch.float32
@@ -91,7 +90,7 @@ class Trainer:
         iter_start_time = time.time()
 
         inps, targets, seg_targets = self.prefetcher.next()  # 从dataloader获取数据
-        inps = inps.to(self.data_type)  # self.data_type
+        inps = inps.to(self.data_type)
         targets = targets.to(self.data_type)
         seg_targets = seg_targets.to(self.data_type)
         targets.requires_grad = False
@@ -166,8 +165,7 @@ class Trainer:
             occupy_mem(self.local_rank)
 
         if self.is_distributed:
-            model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False,
-                        find_unused_parameters=False)
+            model = DDP(model, device_ids=[self.local_rank], broadcast_buffers=False)
 
         if self.use_model_ema:
             self.ema_model = ModelEMA(model, 0.9998)

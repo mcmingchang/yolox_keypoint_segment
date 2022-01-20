@@ -29,7 +29,7 @@ class YOLOPAFPN(nn.Module):
     ):
         super().__init__()
         if backbone_name == 'CoAtNet':
-            self.backbone = coatnet_0(img_shape=input_size, img_channel=img_channel, dep_mul=depth,
+            self.backbone = coatnet_2(img_shape=input_size, img_channel=img_channel, dep_mul=depth,
                                       wid_mul=width, out_features=in_features)
         else:
             self.backbone = CSPDarknet(img_channel, depth, width, depthwise=depthwise,
