@@ -5,31 +5,42 @@ pip install -v -e .
 
 ## 训练   -d 为GPU数量
 #### 车牌关键点检测
-python tools/train.py -expn plate_keypoint -n yolox-kp -d 1 -b 48 --fp16 -c model.pth  --resume
-
+python tools/train.py -expn plate_keypoint -n yolox-kp -d 1 -b 8 --fp16 -c model.pth  --resume
+python tools/train.py -expn plate_keypoint -n yolox-ccpd -d 1 -b 8 --fp16 -c model.pth  --resume
 
 #### 车牌分割
-python tools/train.py -expn plate_seg -n yolox-seg -d 1 -b 2 --fp16 -c model.pth  --resume
+python tools/train.py -expn plate_seg -n yolox-seg -d 1 -b 8 --fp16 -c model.pth  --resume
 
 #### 墙壁识别
-python tools/train.py -expn plaster -n yolox-plaster -d 1 -b 12 --fp16
-python tools/train.py -expn masonry -n yolox-masonry -d 4 -b 192 --fp16
-python tools/train.py -expn decorate -n yolox-decorate -d 4 -b 192 --fp16
+python tools/train.py -expn plaster -n yolox-plaster -d 1 -b 8
+python tools/train.py -expn masonry -n yolox-masonry -d 4 -b 32		
+python tools/train.py -expn decorate -n yolox-decorate -d 4 -b 32
+
 
 ## 测试
 #### 关键点检测
 python tools/demo.py image -n yolox-kp -kp -c yolox_s.pth --path imgs/kps --conf 0.25 --nms 0.45 --tsize 320 --save_result --device cpu
-
+python tools/demo.py image -n yolox-ccpd -kp -c ccpd-s.pth --path imgs/kps --conf 0.25 --nms 0.45 --tsize 320 --save_result --device cpu
 #### 分割
 python tools/demo.py image -n yolox-seg -seg -c last_epoch_ckpt.pth --path imgs/segs --conf 0.25 --nms 0.45 --tsize 320 --save_result --device cpu
 
 #### 抹灰
 python tools/demo.py image -n yolox-plaster -seg -c latest_ckpt.pth --path imgs/plaster --conf 0.25 --nms 0.45 --tsize 320 --save_result --device cpu
 
-
+python tools/demo.py image -n yolox-masonry -seg -c latest_ckpt.pth --path imgs/masonry --conf 0.25 --nms 0.45 --tsize 320 --save_result --device cpu
 
 ## 导出onnx
-python tools/export_onnx.py -n yolox-masonry -c model_weights/masonry_s.pth
+python tools/export_onnx.py -n yolox-ccpd -c model_weights/masonry_s.pth
+
+## 导出trt
+python tools/trt.py -n yolox-ccpd -c your_ckpt.pth
+
+
+
+
+
+
+
 
 
 

@@ -14,6 +14,25 @@ from .datasets_wrapper import Dataset
 from .generate_wall_data import RandomDataset
 from pycocotools import mask as maskUtils
 
+def remove_useless_info(coco, segcls):
+    """
+    Remove useless info in coco dataset. COCO object is modified inplace.
+    This function is mainly used for saving memory (save about 30% mem).
+    """
+    if isinstance(coco, COCO):
+        dataset = coco.dataset
+        dataset.pop("info", None)
+        dataset.pop("licenses", None)
+        for img in dataset["images"]:
+            img.pop("license", None)
+            img.pop("coco_url", None)
+            img.pop("date_captured", None)
+            img.pop("flickr_url", None)
+        if "annotations" in coco.dataset and segcls == 0:
+            for anno in coco.dataset["annotations"]:
+                anno.pop("segmentation", None)
+
+
 class COCODataset(Dataset):
     """
     COCO dataset class.
@@ -64,6 +83,7 @@ class COCODataset(Dataset):
             self.ids = [_ for _ in range(total)]
         else:
             self.coco = COCO(os.path.join(self.data_dir, "annotations", self.json_file))
+            remove_useless_info(self.coco, self.segcls)
             self.ids = self.coco.getImgIds()
             self.class_ids = sorted(self.coco.getCatIds())
             cats = self.coco.loadCats(self.coco.getCatIds())

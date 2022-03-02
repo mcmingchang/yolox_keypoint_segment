@@ -195,7 +195,7 @@ class Predictor(object):
             h, w, _ = img.shape
             sh, sw = seg.shape
             seg = cv2.resize(
-                seg, (int(sw/ratio), int(sh/ratio)),
+                seg, (int(sw / ratio), int(sh / ratio)),
                 interpolation=cv2.INTER_NEAREST)[:h, :w]
         else:
             seg = []

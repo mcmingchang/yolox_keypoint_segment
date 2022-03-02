@@ -43,6 +43,7 @@ class Exp(MyExp):
         self.input_size = (320, 320)  # (height, width)
         self.test_size = (320, 320)
         self.data_dir = 'datasets/plate_seg'
-        self.backbone_name = 'CoAtNet'
-        if self.backbone_name == 'CoAtNet':
-            self.multiscale_range = 0
+
+        # self.backbone_name = 'CoAtNet'
+        # if self.backbone_name == 'CoAtNet':
+        #     self.multiscale_range = 0

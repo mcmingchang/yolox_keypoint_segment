@@ -5,6 +5,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 class IOUloss(nn.Module):
     def __init__(self, reduction="none", loss_type="iou"):
@@ -52,12 +53,27 @@ class IOUloss(nn.Module):
 
         return loss
 
+class WingLoss(nn.Module):
+    def __init__(self, w=10, e=2):
+        super(WingLoss, self).__init__()
+        self.w = w
+        self.e = e
+        self.C = self.w - self.w * np.log(1 + self.w / self.e)
+
+    def forward(self, x, t, sigma=1):
+        weight = torch.ones_like(t)
+        weight[torch.where(t==-1)] = 0
+        diff = weight * (x - t)
+        abs_diff = diff.abs()
+        flag = (abs_diff.data < self.w).float()
+        y = flag * self.w * torch.log(1 + abs_diff / self.e) + (1 - flag) * (abs_diff - self.C)
+        return y.sum()
 
 class LandmarksLoss(nn.Module):
     # BCEwithLogitLoss() with reduced missing label effects.
     def __init__(self, alpha=1.0):
         super(LandmarksLoss, self).__init__()
-        self.loss_fcn = nn.SmoothL1Loss(reduction='sum')
+        self.loss_fcn = WingLoss()  # nn.SmoothL1Loss(reduction='sum')
         self.alpha = alpha
 
     def forward(self, pred, truel):

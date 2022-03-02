@@ -48,5 +48,8 @@ class YOLOX(nn.Module):
             if self.head.segcls > 0:
                 outputs['seg_loss'] = seg_loss
         else:
+            if self.head.decode_in_inference is False:
+                outputs = self.head(fpn_outs)
+                return outputs
             outputs, seg_output = self.head(fpn_outs)
         return outputs, seg_output

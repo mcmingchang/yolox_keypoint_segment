@@ -154,7 +154,7 @@ class Predictor(object):
             model_trt.load_state_dict(torch.load(trt_file))
 
             x = torch.ones(1, 3, exp.test_size[0], exp.test_size[1]).cuda()
-            self.model(x)
+            self.model(x)  # ？？？？  验证尺寸？
             self.model = model_trt
 
     def inference(self, img):

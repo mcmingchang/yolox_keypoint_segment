@@ -30,6 +30,7 @@ def get_exp_by_name(exp_name):
         "yolox-nano": "nano.py",
         "yolov3": "yolov3.py",
         "yolox-kp": "yolox_kp.py",
+        "yolox-ccpd": "yolox_ccpd.py",
         "yolox-seg": "yolox_seg.py",
         "yolox-plaster": "yolox_plaster.py",
         "yolox-masonry": 'yolox_masonry.py',

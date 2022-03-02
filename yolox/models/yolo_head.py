@@ -310,7 +310,7 @@ class YOLOXHead(nn.Module):
             if self.decode_in_inference:  # semantic_pred  seg_proto
                 return self.decode_outputs(outputs, seg_proto=seg_proto, dtype=xin[0].type())
             else:
-                return outputs, seg_proto
+                return outputs#, seg_proto
 
     def get_output_and_grid(self, output, k, stride, dtype):
         grid = self.grids[k]
@@ -331,10 +331,14 @@ class YOLOXHead(nn.Module):
         output[..., 2:4] = torch.exp(output[..., 2:4]) * stride  # wh
         if self.keypoints > 0:
             for i in [i for i in range(2, self.keypoints * 2 + 1, 2)][::-1]:
+                # if i != 2:
+                #     output[..., -1 * i:-1 * (i - 2)] = output[..., -1 * i:-1 * (i - 2)] * stride + output[..., :2]
+                # else:
+                #     output[..., -2:] = output[..., -2:] * stride + output[..., :2]
                 if i != 2:
-                    output[..., -1 * i:-1 * (i - 2)] = output[..., -1 * i:-1 * (i - 2)] * stride + output[..., :2]
+                    output[..., -1 * i:-1 * (i - 2)] = (output[..., -1 * i:-1 * (i - 2)] + grid) * stride
                 else:
-                    output[..., -2:] = output[..., -2:] * stride + output[..., :2]
+                    output[..., -2:] = (output[..., -2:] + grid) * stride
         return output, grid
 
     def decode_outputs(self, outputs, seg_proto, dtype):
@@ -355,9 +359,9 @@ class YOLOXHead(nn.Module):
         if self.keypoints > 0:
             for i in [i for i in range(2, self.keypoints * 2 + 1, 2)][::-1]:
                 if i != 2:
-                    outputs[..., -1 * i:-1 * (i - 2)] = outputs[..., -1 * i:-1 * (i - 2)] * strides + outputs[..., :2]
+                    outputs[..., -1 * i:-1 * (i - 2)] = (outputs[..., -1 * i:-1 * (i - 2)] + grids) * strides
                 else:
-                    outputs[..., -2:] = outputs[..., -2:] * strides + outputs[..., :2]
+                    outputs[..., -2:] = (outputs[..., -2:] + grids) * strides
         return outputs, seg_proto
 
     def get_losses(

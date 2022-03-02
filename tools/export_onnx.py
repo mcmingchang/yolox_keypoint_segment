@@ -84,7 +84,7 @@ def main():
     img_channel = exp.img_channel
     dummy_input = torch.randn(args.batch_size, img_channel, exp.test_size[0], exp.test_size[1])
 
-    outputs, seg_output = model(dummy_input)
+    outputs = model(dummy_input)
     print('outputs shape: ', outputs.shape)
     torch.onnx.export(
         model,
