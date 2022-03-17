@@ -33,11 +33,13 @@ python tools/demo.py image -n yolox-masonry -seg -c latest_ckpt.pth --path imgs/
 python tools/export_onnx.py -n yolox-ccpd -c model_weights/masonry_s.pth
 
 ## 导出trt
-python tools/trt.py -n yolox-ccpd -c your_ckpt.pth
+python tools/trt.py -n yolox-ccpd --batch 8 -c your_ckpt.pth
 
+到TensorRT-8.4.0.6/bin下运行
+./trtexec --onnx=yolox-ccpd-192-320.onnx --saveEngine=model.trt --minShapes=images:1x3x192x320 
+--optShapes=images:8x3x192x320 --maxShapes=images:32x3x192x320 --fp16 --workspace=1024
 
-
-
+https://zhuanlan.zhihu.com/p/467401558  推理
 
 
 

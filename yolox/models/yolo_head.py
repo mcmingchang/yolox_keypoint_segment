@@ -331,10 +331,6 @@ class YOLOXHead(nn.Module):
         output[..., 2:4] = torch.exp(output[..., 2:4]) * stride  # wh
         if self.keypoints > 0:
             for i in [i for i in range(2, self.keypoints * 2 + 1, 2)][::-1]:
-                # if i != 2:
-                #     output[..., -1 * i:-1 * (i - 2)] = output[..., -1 * i:-1 * (i - 2)] * stride + output[..., :2]
-                # else:
-                #     output[..., -2:] = output[..., -2:] * stride + output[..., :2]
                 if i != 2:
                     output[..., -1 * i:-1 * (i - 2)] = (output[..., -1 * i:-1 * (i - 2)] + grid) * stride
                 else:
