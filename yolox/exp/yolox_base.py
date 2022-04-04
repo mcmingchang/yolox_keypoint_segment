@@ -185,8 +185,12 @@ class Exp(BaseExp):
         if rank == 0:
             size_factor = self.input_size[1] * 1.0 / self.input_size[0]
             if not hasattr(self, 'random_size'):
-                min_size = int(self.input_size[0] / 32) - self.multiscale_range
-                max_size = int(self.input_size[0] / 32) + self.multiscale_range
+                if isinstance(self.multiscale_range, int):
+                    min_size = int(self.input_size[0] / 32) - self.multiscale_range
+                    max_size = int(self.input_size[0] / 32) + self.multiscale_range
+                else:
+                    min_size = int(self.input_size[0] / 32) - self.multiscale_range[0]
+                    max_size = int(self.input_size[0] / 32) + self.multiscale_range[1]
                 self.random_size = (min_size, max_size)
             size = random.randint(*self.random_size)
             size = (int(32 * size), 32 * int(size * size_factor))
