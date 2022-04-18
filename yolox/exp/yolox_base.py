@@ -9,6 +9,7 @@ import torch
 import torch.distributed as dist
 import torch.nn as nn
 from .base_exp import BaseExp
+import numpy as np
 
 
 class Exp(BaseExp):
@@ -30,6 +31,13 @@ class Exp(BaseExp):
         self.data_num_workers = 4
         self.input_size = (640, 640)  # (height, width)
         self.multiscale_range = 5
+
+        scale_h, scale_w = np.array(self.input_size) / 32
+        if isinstance(self.multiscale_range, int):
+            assert scale_h > self.multiscale_range and scale_w > self.multiscale_range
+        else:
+            assert scale_h > self.multiscale_range[0] and scale_w > self.multiscale_range[1]
+
         self.pin_memory = True
         # 自定义随机生成器
         self.random_dataset = None
