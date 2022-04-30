@@ -90,7 +90,6 @@ def main():
     dummy_input = torch.randn(args.batch_size, exp.img_channel, exp.test_size[0], exp.test_size[1])
 
     outputs = model(dummy_input)
-    print('outputs shape: ', outputs.shape)
     torch.onnx.export(
         model,
         dummy_input,

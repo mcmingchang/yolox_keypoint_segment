@@ -353,11 +353,22 @@ class YOLOXHead(nn.Module):
         outputs[..., :2] = (outputs[..., :2] + grids) * strides  # cxcy
         outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * strides  # wh
         if self.keypoints > 0:
-            for i in [i for i in range(2, self.keypoints * 2 + 1, 2)][::-1]:
-                if i != 2:
-                    outputs[..., -1 * i:-1 * (i - 2)] = (outputs[..., -1 * i:-1 * (i - 2)] + grids) * strides
-                else:
-                    outputs[..., -2:] = (outputs[..., -2:] + grids) * strides
+            grids_kps = grids.repeat(1, 1, self.keypoints)
+            outputs[..., -2*self.keypoints:] = (outputs[..., -2*self.keypoints:] + grids_kps) * strides
+
+        # if self.keypoints > 0:
+        #     grids_kps = grids.repeat(1, 1, self.keypoints)
+        #     xy, wh, conf, prob, kps = torch.split(outputs, [2, 2, 1, self.num_classes, self.keypoints*2], dim=2)
+        #     kps = (kps + grids_kps) * strides
+        #     xy = (xy + grids) * strides
+        #     wh = torch.exp(wh) * strides
+        #     outputs = torch.cat((xy, wh, conf, prob, kps), dim=2)
+        # else:
+        #     xy, wh, conf, prob = torch.split(outputs, [2, 2, 1, self.num_classes], dim=2)
+        #     xy = (xy + grids) * strides
+        #     wh = torch.exp(wh) * strides
+        #     outputs = torch.cat((xy, wh, conf, prob), dim=2)
+
         return outputs, seg_proto
 
     def get_losses(

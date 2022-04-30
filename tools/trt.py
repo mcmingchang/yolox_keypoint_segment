@@ -31,6 +31,15 @@ def make_parser():
         "-w", '--workspace', type=int, default=32, help='max workspace size in detect'
     )
     parser.add_argument("-b", '--batch', type=int, default=1, help='max batch size in detect')
+
+    parser.add_argument(
+        '-d',
+        "--decode_in_inference",
+        action="store_true",
+        default=False,
+        help="decode in inference or not"
+    )
+
     return parser
 
 
@@ -57,7 +66,7 @@ def main():
     logger.info("loaded checkpoint done.")
     model.eval()
     model.cuda()
-    model.head.decode_in_inference = False
+    model.head.decode_in_inference = args.decode_in_inference
     x = torch.ones(1, 3, exp.test_size[0], exp.test_size[1]).cuda()
     model_trt = torch2trt(
         model,
