@@ -65,7 +65,7 @@ def make_parser():
         "--exp_file",
         default=None,
         type=str,
-        help="pls input your experiment description file",
+        help="please input your experiment description file",
     )
     parser.add_argument("-c", "--ckpt", default=None, type=str, help="ckpt for eval")
     parser.add_argument(
@@ -154,7 +154,7 @@ class Predictor(object):
             model_trt.load_state_dict(torch.load(trt_file))
 
             x = torch.ones(1, 3, exp.test_size[0], exp.test_size[1]).cuda()
-            self.model(x)  # ？？？？  验证尺寸？
+            self.model(x)
             self.model = model_trt
 
     def inference(self, img):
@@ -177,10 +177,8 @@ class Predictor(object):
         img_info["ratio"] = ratio
 
         img, _ = self.preproc(img, None, self.test_size)
-
         img = torch.from_numpy(img).unsqueeze(0)
         img = img.float()
-
         if self.device == "gpu":
             img = img.cuda()
             if self.fp16:
@@ -265,18 +263,19 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
     width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)  # float
     height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)  # float
     fps = cap.get(cv2.CAP_PROP_FPS)
-    save_folder = os.path.join(
-        vis_folder, time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
-    )
-    os.makedirs(save_folder, exist_ok=True)
-    if args.demo == "video":
-        save_path = os.path.join(save_folder, args.path.split("/")[-1])
-    else:
-        save_path = os.path.join(save_folder, "camera.mp4")
-    logger.info(f"video save_path is {save_path}")
-    vid_writer = cv2.VideoWriter(
-        save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width), int(height))
-    )
+    if args.save_result:
+        save_folder = os.path.join(
+            vis_folder, time.strftime("%Y_%m_%d_%H_%M_%S", current_time)
+        )
+        os.makedirs(save_folder, exist_ok=True)
+        if args.demo == "video":
+            save_path = os.path.join(save_folder, os.path.basename(args.path))
+        else:
+            save_path = os.path.join(save_folder, "camera.mp4")
+        logger.info(f"video save_path is {save_path}")
+        vid_writer = cv2.VideoWriter(
+            save_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (int(width), int(height))
+        )
     while True:
         ret_val, frame = cap.read()
         if ret_val:
@@ -284,6 +283,9 @@ def imageflow_demo(predictor, vis_folder, current_time, args):
             result_frame = predictor.visual(outputs[0], img_info, predictor.confthre)
             if args.save_result:
                 vid_writer.write(result_frame)
+            else:
+                cv2.namedWindow("yolox", cv2.WINDOW_NORMAL)
+                cv2.imshow("yolox", result_frame)
             ch = cv2.waitKey(1)
             if ch == 27 or ch == ord("q") or ch == ord("Q"):
                 break

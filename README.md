@@ -15,13 +15,14 @@ This repo is an implementation of PyTorch version YOLOX, there is also a [MegEng
 <img src="assets/git_fig.png" width="1000" >
 
 ## Updates!!
+* 【2022/04/14】 We suport jit compile op.
 * 【2021/08/19】 We optimize the training process with **2x** faster training and **~1%** higher performance! See [notes](docs/updates_note.md) for more details.
 * 【2021/08/05】 We release [MegEngine version YOLOX](https://github.com/MegEngine/YOLOX).
 * 【2021/07/28】 We fix the fatal error of [memory leak](https://github.com/Megvii-BaseDetection/YOLOX/issues/103)
 * 【2021/07/26】 We now support [MegEngine](https://github.com/Megvii-BaseDetection/YOLOX/tree/main/demo/MegEngine) deployment.
 * 【2021/07/20】 We have released our technical report on [Arxiv](https://arxiv.org/abs/2107.08430).
 
-## Comming soon
+## Coming soon
 - [ ] YOLOX-P6 and larger model.
 - [ ] Objects365 pretrain.
 - [ ] Transformer modules.

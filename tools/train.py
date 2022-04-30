@@ -10,9 +10,9 @@ from loguru import logger
 import torch
 import torch.backends.cudnn as cudnn
 
-from yolox.core import Trainer, launch
-from yolox.exp import get_exp
-from yolox.utils import configure_nccl, configure_omp, get_num_devices
+from yolox.core import launch
+from yolox.exp import Exp, get_exp
+from yolox.utils import configure_module, configure_nccl, configure_omp, get_num_devices
 
 
 def make_parser():
@@ -32,7 +32,7 @@ def make_parser():
     )
     parser.add_argument("-b", "--batch-size", type=int, default=64, help="batch size")
     parser.add_argument(
-        "-d", "--devices", default=None, type=int, help="num of gpu"
+        "-d", "--devices", default=None, type=int, help="device for training"
     )
     parser.add_argument(
         "-f",
@@ -81,6 +81,13 @@ def make_parser():
         help="occupy GPU memory first for training.",
     )
     parser.add_argument(
+        "-l",
+        "--logger",
+        type=str,
+        help="Logger to be used for metrics",
+        default="tensorboard"
+    )
+    parser.add_argument(
         "opts",
         help="Modify config options using the command-line",
         default=None,
@@ -90,7 +97,7 @@ def make_parser():
 
 
 @logger.catch
-def main(exp, args):
+def main(exp: Exp, args):
     if exp.seed is not None:
         random.seed(exp.seed)
         torch.manual_seed(exp.seed)
@@ -106,11 +113,12 @@ def main(exp, args):
     configure_omp()
     cudnn.benchmark = True
 
-    trainer = Trainer(exp, args)
+    trainer = exp.get_trainer(args)
     trainer.train()
 
 
 if __name__ == "__main__":
+    configure_module()
     args = make_parser().parse_args()
     exp = get_exp(args.exp_file, args.name)
     exp.merge(args.opts)
@@ -122,7 +130,6 @@ if __name__ == "__main__":
     assert num_gpu <= get_num_devices()
 
     dist_url = "auto" if args.dist_url is None else args.dist_url
-    os.environ["CUDA_VISIBLE_DEVICES"] = ','.join([str(i) for i in range(torch.cuda.device_count())])
     launch(
         main,
         num_gpu,

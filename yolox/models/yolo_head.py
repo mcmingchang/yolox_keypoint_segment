@@ -205,11 +205,11 @@ class YOLOXHead(nn.Module):
             b = conv.bias.view(self.n_anchors, -1)
             b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
             conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
-        if self.keypoints > 0:
-            for conv in self.lmk_preds:
-                b = conv.bias.view(self.n_anchors, -1)
-                b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
-                conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
+        # if self.keypoints > 0:
+        #     for conv in self.lmk_preds:
+        #         b = conv.bias.view(self.n_anchors, -1)
+        #         b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
+        #         conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
         if self.segcls > 0:
             for conv in self.seg_preds:
                 if isinstance(conv, nn.Conv2d):

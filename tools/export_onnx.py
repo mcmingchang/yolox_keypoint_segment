@@ -26,7 +26,7 @@ def make_parser():
         "--output", default="output", type=str, help="output node name of onnx model"
     )
     parser.add_argument(
-        "-o", "--opset", default=12, type=int, help="onnx opset version"
+        "-o", "--opset", default=14, type=int, help="onnx opset version"
     )
     parser.add_argument("--batch-size", type=int, default=1, help="batch size")
     parser.add_argument(
@@ -38,7 +38,7 @@ def make_parser():
         "--exp_file",
         default=None,
         type=str,
-        help="expriment description file",
+        help="experiment description file",
     )
     parser.add_argument("-expn", "--experiment-name", type=str, default=None)
     parser.add_argument("-n", "--name", type=str, default=None, help="model name")
@@ -48,6 +48,12 @@ def make_parser():
         help="Modify config options using the command-line",
         default=None,
         nargs=argparse.REMAINDER,
+    )
+    parser.add_argument(
+        "--decode_in_inference",
+        action="store_true",
+        default=True,
+        help="decode in inference or not"
     )
 
     return parser
@@ -78,11 +84,10 @@ def main():
         ckpt = ckpt["model"]
     model.load_state_dict(ckpt)
     model = replace_module(model, nn.SiLU, SiLU)
-    model.head.decode_in_inference = False
+    model.head.decode_in_inference = args.decode_in_inference
 
     logger.info("loading checkpoint done.")
-    img_channel = exp.img_channel
-    dummy_input = torch.randn(args.batch_size, img_channel, exp.test_size[0], exp.test_size[1])
+    dummy_input = torch.randn(args.batch_size, exp.img_channel, exp.test_size[0], exp.test_size[1])
 
     outputs = model(dummy_input)
     print('outputs shape: ', outputs.shape)

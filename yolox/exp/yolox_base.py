@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-# Copyright (c) 2014-2021 Megvii Inc. All rights reserved.
+# Copyright (c) Megvii Inc. All rights reserved.
 
 import os
 import random
@@ -8,6 +8,7 @@ import random
 import torch
 import torch.distributed as dist
 import torch.nn as nn
+
 from .base_exp import BaseExp
 import numpy as np
 
@@ -75,6 +76,7 @@ class Exp(BaseExp):
         self.momentum = 0.9
         self.print_interval = 10
         self.eval_interval = 10
+        self.save_history_ckpt = True
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
 
         # -----------------  testing config ------------------ #
@@ -102,11 +104,10 @@ class Exp(BaseExp):
 
         self.model.apply(init_yolo)
         self.model.head.initialize_biases(1e-2)
+        self.model.train()
         return self.model
 
-    def get_data_loader(
-        self, batch_size, is_distributed, no_aug=False, cache_img=False
-    ):
+    def get_data_loader(self, batch_size, is_distributed, no_aug=False, cache_img=False):
         from yolox.data import (
             COCODataset,
             TrainTransform,
@@ -114,16 +115,11 @@ class Exp(BaseExp):
             DataLoader,
             InfiniteSampler,
             MosaicDetection,
-            worker_init_reset_seed
+            worker_init_reset_seed,
         )
-        from yolox.utils import (
-            wait_for_the_master,
-            get_local_rank,
-        )
+        from yolox.utils import wait_for_the_master
 
-        local_rank = get_local_rank()
-
-        with wait_for_the_master(local_rank):
+        with wait_for_the_master():
             dataset = COCODataset(
                 data_dir=self.data_dir,
                 json_file=self.train_ann,
@@ -248,7 +244,7 @@ class Exp(BaseExp):
                     pg0, lr=lr, momentum=self.momentum, nesterov=True
                 )
             optimizer.add_param_group(
-                {"params": pg1, "weight_decay": self.weight_decay}  # 5e-4
+                {"params": pg1, "weight_decay": self.weight_decay}
             )  # add pg1 with weight_decay
             optimizer.add_param_group({"params": pg2})
             self.optimizer = optimizer
@@ -275,7 +271,7 @@ class Exp(BaseExp):
 
         valdataset = COCODataset(
             data_dir=self.data_dir,
-            json_file=self.val_ann if not testdev else "image_info_test-dev2017.json",
+            json_file=self.val_ann if not testdev else self.test_ann,
             name="val2017" if not testdev else "test2017",
             img_size=self.test_size,
             preproc=ValTransform(legacy=legacy),
@@ -312,6 +308,12 @@ class Exp(BaseExp):
             testdev=testdev,
         )
         return evaluator
+
+    def get_trainer(self, args):
+        from yolox.core import Trainer
+        trainer = Trainer(self, args)
+        # NOTE: trainer shouldn't be an attribute of exp object
+        return trainer
 
     def eval(self, model, evaluator, is_distributed, half=False):
         return evaluator.evaluate(model, is_distributed, half)

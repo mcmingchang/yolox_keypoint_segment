@@ -27,12 +27,13 @@ class Exp(MyExp):
         self.enable_mixup = False  # seg中只能为False
         self.multiscale_range = 3  # 随机变化的尺度 320:5  32*5~32*15
         self.mosaic_scale = (0.1, 2)
+        self.hsv_prob = 0
         self.in_channels = [128, 256, 512, 1024]
         self.in_features = ("dark2", "dark3", "dark4", "dark5")
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
         self.data_num_workers = 8
         self.pin_memory = True
-        self.mosaic_prob = 1
+        self.mosaic_prob = 0
         self.img_channel = 4
         self.num_classes = 1
         self.segcls = self.num_classes+1

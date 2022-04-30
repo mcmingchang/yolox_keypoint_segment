@@ -24,15 +24,18 @@ def make_parser():
         "--exp_file",
         default=None,
         type=str,
-        help="pls input your expriment description file",
+        help="please input your experiment description file",
     )
     parser.add_argument("-c", "--ckpt", default=None, type=str, help="ckpt path")
-    parser.add_argument("-w", '--workspace', type=int, default=32, help='max workspace size in detect')
+    parser.add_argument(
+        "-w", '--workspace', type=int, default=32, help='max workspace size in detect'
+    )
     parser.add_argument("-b", '--batch', type=int, default=1, help='max batch size in detect')
     return parser
 
 
 @logger.catch
+@torch.no_grad()
 def main():
     args = make_parser().parse_args()
     exp = get_exp(args.exp_file, args.name)

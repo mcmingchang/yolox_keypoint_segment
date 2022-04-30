@@ -43,7 +43,7 @@ class RandomDataset:
 
 
     def get_train_data(self):
-        if random.randint(0, 1) == 0:
+        if random.randint(0, 1) >-1:
             box_ls = []
             img_name = random.sample(self.name_ls, 1)[0]
             file_name = os.path.splitext(img_name)[0]
@@ -172,6 +172,12 @@ class RandomDataset:
 
             new_img = all_img[:, start:start + new_w]
             split_mask = all_mask[:, start:start + new_w]
+
+            # cv2.imshow('all_img', all_img)
+            # cv2.imshow('all_mask', all_mask)
+            # cv2.imshow('new_img', new_img)
+            # cv2.imshow('split_mask', split_mask)
+
             box_ls = []
             for cate_name in self.mask_order:
                 cate_mask = np.zeros((140, new_w), np.uint8)
@@ -230,8 +236,9 @@ if __name__ == '__main__':
             y_max = list_xy[3]
             classes = list_xy[4]
             mask_data = {'size': [h, w], 'counts': segmentations}
+            print(mask_data)
             new_mask = decode(mask_data)
-            mask[new_mask>0] = color[dataset.cate_ls[int(classes) - 1]]
+            mask[new_mask > 0] = color[dataset.cate_ls[int(classes) - 1]]
         cv2.imshow('1', left)
         cv2.imshow('2', right)
 
