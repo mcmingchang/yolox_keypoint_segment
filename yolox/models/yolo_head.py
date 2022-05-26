@@ -27,6 +27,7 @@ class YOLOXHead(nn.Module):
             in_channels=[256, 512, 1024],
             act="silu",
             depthwise=False,
+            model_export=False
     ):
         """
         Args:
@@ -41,6 +42,7 @@ class YOLOXHead(nn.Module):
         self.segcls = segcls
         self.coef_dim = 32 if segcls > 0 else 0
         self.decode_in_inference = True  # for deploy, set to False
+        self.model_export = model_export
 
         self.cls_convs = nn.ModuleList()
         self.reg_convs = nn.ModuleList()
@@ -51,6 +53,7 @@ class YOLOXHead(nn.Module):
         self.stems = nn.ModuleList()
 
         if self.keypoints > 0:
+            self.kpts_convs = nn.ModuleList()
             self.lmk_preds = nn.ModuleList()
         Conv = DWConv if depthwise else BaseConv
         if self.segcls > 0:
@@ -60,7 +63,6 @@ class YOLOXHead(nn.Module):
             self.seg_preds = nn.ModuleList()
             self.mask_ratio = 4 if len(in_channels) == 3 else 2
             in_channels = in_channels if len(in_channels) == 3 else in_channels[1:]
-
 
         for i in range(len(in_channels)):
             self.stems.append(
@@ -140,10 +142,34 @@ class YOLOXHead(nn.Module):
                 )
             )
             if self.keypoints > 0:
+                # self.kps_sigmas = torch.tensor([.26, .25, .25, .35, .35, .79, .79, .72, .72, .62, .62, 1.07,
+                #                        1.07, .87, .87, .89, .89]) / 10.0  # Key points of human body
+                self.kps_sigmas = torch.tensor([0.01 for _ in range(self.keypoints)])
+
+                # self.kpts_convs.append(
+                #     nn.Sequential(
+                #         *[
+                #             Conv(
+                #                 in_channels=int(256 * width),
+                #                 out_channels=int(256 * width),
+                #                 ksize=3,
+                #                 stride=1,
+                #                 act=act,
+                #             ),
+                #             Conv(
+                #                 in_channels=int(256 * width),
+                #                 out_channels=int(256 * width),
+                #                 ksize=3,
+                #                 stride=1,
+                #                 act=act,
+                #             ),
+                #         ]
+                #     )
+                # )
                 self.lmk_preds.append(
                     nn.Conv2d(
                         in_channels=int(256 * width),
-                        out_channels=self.n_anchors * self.keypoints * 2,
+                        out_channels=self.n_anchors * self.keypoints * 3,  # 3
                         kernel_size=1,
                         stride=1,
                         padding=0,
@@ -205,11 +231,6 @@ class YOLOXHead(nn.Module):
             b = conv.bias.view(self.n_anchors, -1)
             b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
             conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
-        # if self.keypoints > 0:
-        #     for conv in self.lmk_preds:
-        #         b = conv.bias.view(self.n_anchors, -1)
-        #         b.data.fill_(-math.log((1 - prior_prob) / prior_prob))
-        #         conv.bias = torch.nn.Parameter(b.view(-1), requires_grad=True)
         if self.segcls > 0:
             for conv in self.seg_preds:
                 if isinstance(conv, nn.Conv2d):
@@ -236,14 +257,16 @@ class YOLOXHead(nn.Module):
         ):
             x = self.stems[k](x)
             cls_x = x
-            reg_x = x
             cls_feat = cls_conv(cls_x)
             cls_output = self.cls_preds[k](cls_feat)
 
+            reg_x = x
             reg_feat = reg_conv(reg_x)
             reg_output = self.reg_preds[k](reg_feat)
             obj_output = self.obj_preds[k](reg_feat)
             if self.keypoints > 0:
+                # kpts_x = x
+                # kpts_feat = self.kpts_convs[k](kpts_x)
                 lmk_output = self.lmk_preds[k](reg_feat)
             if self.segcls > 0:
                 seg_x = x
@@ -265,8 +288,8 @@ class YOLOXHead(nn.Module):
                 y_shifts.append(grid[:, :, 1])
                 expanded_strides.append(
                     torch.zeros(1, grid.shape[1])
-                    .fill_(stride_this_level)
-                    .type_as(xin[0])
+                        .fill_(stride_this_level)
+                        .type_as(xin[0])
                 )
                 if self.use_l1:
                     batch_size = reg_output.shape[0]
@@ -315,7 +338,7 @@ class YOLOXHead(nn.Module):
     def get_output_and_grid(self, output, k, stride, dtype):
         grid = self.grids[k]
         batch_size = output.shape[0]
-        n_ch = 5 + self.num_classes + self.keypoints * 2 + self.coef_dim  # 5:x,y,w,h,bs
+        n_ch = 5 + self.num_classes + self.keypoints * 3 + self.coef_dim  # 5:x,y,w,h,bs
         hsize, wsize = output.shape[-2:]
         if grid.shape[2:4] != output.shape[2:4]:
             yv, xv = meshgrid([torch.arange(hsize), torch.arange(wsize)])
@@ -330,11 +353,12 @@ class YOLOXHead(nn.Module):
         output[..., :2] = (output[..., :2] + grid) * stride  # cxcy
         output[..., 2:4] = torch.exp(output[..., 2:4]) * stride  # wh
         if self.keypoints > 0:
-            for i in [i for i in range(2, self.keypoints * 2 + 1, 2)][::-1]:
-                if i != 2:
-                    output[..., -1 * i:-1 * (i - 2)] = (output[..., -1 * i:-1 * (i - 2)] + grid) * stride
-                else:
-                    output[..., -2:] = (output[..., -2:] + grid) * stride
+            # grids_kps = grid.repeat(1, 1, self.keypoints)
+            # output[..., -2 * self.keypoints:] = (output[..., -2 * self.keypoints:] + grids_kps) * stride
+
+            kpt_conf_grids = torch.zeros_like(grid)[..., 0:1]
+            kpt_grids = torch.cat((grid, kpt_conf_grids), dim=2).repeat(1, 1, self.keypoints)
+            output[..., -3 * self.keypoints:] = (output[..., -3 * self.keypoints:] + kpt_grids) * stride
         return output, grid
 
     def decode_outputs(self, outputs, seg_proto, dtype):
@@ -350,24 +374,31 @@ class YOLOXHead(nn.Module):
         grids = torch.cat(grids, dim=1).type(dtype)
         strides = torch.cat(strides, dim=1).type(dtype)
 
+        # if self.model_export:
+        #     if self.keypoints > 0:
+        #         xy, wh, conf, prob, kpts = torch.split(outputs, [2, 2, 1, self.num_classes, 3 * self.keypoints], dim=2)
+        #     else:
+        #         xy, wh, conf, prob, kpts = torch.split(outputs, [2, 2, 1, self.num_classes], dim=2)
+        #     xy = (xy + grids) * strides
+        #     wh = torch.exp(wh) * strides
+        #     idxs = torch.argmax(prob, dim=-1).unsqueeze(axis=-1).type(xy.dtype)
+        #     if self.keypoints > 0:
+        #         kpt_conf_grids = torch.zeros_like(grids)[..., 0:1]
+        #         kpt_grids = torch.cat((grids, kpt_conf_grids), dim=2).repeat(1, 1, self.keypoints)
+        #         kpts = (kpts + kpt_grids.repeat(1, 1, self.keypoints)) * strides
+        #         outputs = torch.cat((xy, wh, conf, idxs, prob, kpts), dim=2)
+        #     else:
+        #         outputs = torch.cat((xy, wh, conf, idxs, prob), dim=2)
+        # else:
         outputs[..., :2] = (outputs[..., :2] + grids) * strides  # cxcy
         outputs[..., 2:4] = torch.exp(outputs[..., 2:4]) * strides  # wh
         if self.keypoints > 0:
-            grids_kps = grids.repeat(1, 1, self.keypoints)
-            outputs[..., -2*self.keypoints:] = (outputs[..., -2*self.keypoints:] + grids_kps) * strides
+            # grids_kps = grids.repeat(1, 1, self.keypoints)
+            # outputs[..., -2 * self.keypoints:] = (outputs[..., -2 * self.keypoints:] + grids_kps) * strides
 
-        # if self.keypoints > 0:
-        #     grids_kps = grids.repeat(1, 1, self.keypoints)
-        #     xy, wh, conf, prob, kps = torch.split(outputs, [2, 2, 1, self.num_classes, self.keypoints*2], dim=2)
-        #     kps = (kps + grids_kps) * strides
-        #     xy = (xy + grids) * strides
-        #     wh = torch.exp(wh) * strides
-        #     outputs = torch.cat((xy, wh, conf, prob, kps), dim=2)
-        # else:
-        #     xy, wh, conf, prob = torch.split(outputs, [2, 2, 1, self.num_classes], dim=2)
-        #     xy = (xy + grids) * strides
-        #     wh = torch.exp(wh) * strides
-        #     outputs = torch.cat((xy, wh, conf, prob), dim=2)
+            kpt_conf_grids = torch.zeros_like(grids)[..., 0:1]
+            kpt_grids = torch.cat((grids, kpt_conf_grids), dim=2).repeat(1, 1, self.keypoints)
+            outputs[..., -3 * self.keypoints:] = (outputs[..., -3 * self.keypoints:] + kpt_grids) * strides
 
         return outputs, seg_proto
 
@@ -422,20 +453,21 @@ class YOLOXHead(nn.Module):
                 reg_target = outputs.new_zeros((0, 4))
                 l1_target = outputs.new_zeros((0, 4))
                 obj_target = outputs.new_zeros((total_num_anchors, 1))
+                fg_mask = outputs.new_zeros(total_num_anchors).bool()
                 if self.keypoints > 0:
                     lmk_target = outputs.new_zeros((0, self.keypoints * 2))
                 if self.segcls > 0:
                     seg_target = seg_labels[batch_idx]
                     cls_targets_ls.append(cls_target)
-                fg_mask = outputs.new_zeros(total_num_anchors).bool()
+
             else:
                 gt_bboxes_per_image = labels[batch_idx, :num_gt, 1:5]
                 gt_classes = labels[batch_idx, :num_gt, 0]
+                bboxes_preds_per_image = bbox_preds[batch_idx]
                 if self.keypoints > 0:
                     gt_lmks = labels[batch_idx, :num_gt, -2 * self.keypoints:]
                 if self.segcls > 0:
                     gt_segs = seg_labels[batch_idx]
-                bboxes_preds_per_image = bbox_preds[batch_idx]
                 try:
                     (
                         gt_matched_classes,
@@ -551,8 +583,11 @@ class YOLOXHead(nn.Module):
                        )
                    ).sum() / num_fg
         if self.keypoints > 0:
-            loss_lmk = self.lmk_loss(lmk_preds.view(-1, 2 * self.keypoints)[fg_masks], lmk_targets
-                                     )#.sum() / num_fg
+            # loss_lmk = self.lmk_loss(lmk_preds.view(-1, 2 * self.keypoints)[fg_masks], lmk_targets)*0.5
+
+            loss_kpts, loss_kpts_vis = self.kpts_loss(
+                lmk_preds.view(-1, self.keypoints * 3)[fg_masks], lmk_targets, reg_targets)
+            loss_lmk = 5.0 * loss_kpts.sum() / num_fg + loss_kpts_vis.sum() / num_fg
         else:
             loss_lmk = 0
 
@@ -577,7 +612,6 @@ class YOLOXHead(nn.Module):
                 for cls in range(1, self.segcls):
                     semantic_target[b_][semantic_section[b_, cls]] = cls
             loss_s = self.cross_entropy_loss2d(semantic_pred, semantic_target.long())
-
 
             proto_h, proto_w = seg_proto.shape[1:3]  # 320--> 80,80,32
             for bb in range(batch_size):
@@ -616,7 +650,7 @@ class YOLOXHead(nn.Module):
             loss_l1 = 0.0
 
         reg_weight = 5.0
-        lmk_weight = 0.5
+        lmk_weight = 1.0
         seg_weight = 1.0
 
         loss = reg_weight * loss_iou + loss_obj + loss_cls + loss_l1 + \
@@ -643,22 +677,22 @@ class YOLOXHead(nn.Module):
 
     @torch.no_grad()
     def get_assignments(
-        self,
-        batch_idx,
-        num_gt,
-        total_num_anchors,
-        gt_bboxes_per_image,
-        gt_classes,
-        bboxes_preds_per_image,
-        expanded_strides,
-        x_shifts,
-        y_shifts,
-        cls_preds,
-        bbox_preds,
-        obj_preds,
-        labels,
-        imgs,
-        mode="gpu",
+            self,
+            batch_idx,
+            num_gt,
+            total_num_anchors,
+            gt_bboxes_per_image,
+            gt_classes,
+            bboxes_preds_per_image,
+            expanded_strides,
+            x_shifts,
+            y_shifts,
+            cls_preds,
+            bbox_preds,
+            obj_preds,
+            labels,
+            imgs,
+            mode="gpu",
     ):
 
         if mode == "cpu":
@@ -692,9 +726,9 @@ class YOLOXHead(nn.Module):
 
         gt_cls_per_image = (
             F.one_hot(gt_classes.to(torch.int64), self.num_classes)
-            .float()
-            .unsqueeze(1)
-            .repeat(1, num_in_boxes_anchor, 1)
+                .float()
+                .unsqueeze(1)
+                .repeat(1, num_in_boxes_anchor, 1)
         )
         pair_wise_ious_loss = -torch.log(pair_wise_ious + 1e-8)
 
@@ -712,9 +746,9 @@ class YOLOXHead(nn.Module):
         del cls_preds_
 
         cost = (
-            pair_wise_cls_loss
-            + 3.0 * pair_wise_ious_loss
-            + 100000.0 * (~is_in_boxes_and_center)
+                pair_wise_cls_loss
+                + 3.0 * pair_wise_ious_loss
+                + 100000.0 * (~is_in_boxes_and_center)
         )
 
         (
@@ -740,47 +774,47 @@ class YOLOXHead(nn.Module):
         )
 
     def get_in_boxes_info(
-        self,
-        gt_bboxes_per_image,
-        expanded_strides,
-        x_shifts,
-        y_shifts,
-        total_num_anchors,
-        num_gt,
+            self,
+            gt_bboxes_per_image,
+            expanded_strides,
+            x_shifts,
+            y_shifts,
+            total_num_anchors,
+            num_gt,
     ):
         expanded_strides_per_image = expanded_strides[0]
         x_shifts_per_image = x_shifts[0] * expanded_strides_per_image
         y_shifts_per_image = y_shifts[0] * expanded_strides_per_image
         x_centers_per_image = (
             (x_shifts_per_image + 0.5 * expanded_strides_per_image)
-            .unsqueeze(0)
-            .repeat(num_gt, 1)
+                .unsqueeze(0)
+                .repeat(num_gt, 1)
         )  # [n_anchor] -> [n_gt, n_anchor]
         y_centers_per_image = (
             (y_shifts_per_image + 0.5 * expanded_strides_per_image)
-            .unsqueeze(0)
-            .repeat(num_gt, 1)
+                .unsqueeze(0)
+                .repeat(num_gt, 1)
         )
 
         gt_bboxes_per_image_l = (
             (gt_bboxes_per_image[:, 0] - 0.5 * gt_bboxes_per_image[:, 2])
-            .unsqueeze(1)
-            .repeat(1, total_num_anchors)
+                .unsqueeze(1)
+                .repeat(1, total_num_anchors)
         )
         gt_bboxes_per_image_r = (
             (gt_bboxes_per_image[:, 0] + 0.5 * gt_bboxes_per_image[:, 2])
-            .unsqueeze(1)
-            .repeat(1, total_num_anchors)
+                .unsqueeze(1)
+                .repeat(1, total_num_anchors)
         )
         gt_bboxes_per_image_t = (
             (gt_bboxes_per_image[:, 1] - 0.5 * gt_bboxes_per_image[:, 3])
-            .unsqueeze(1)
-            .repeat(1, total_num_anchors)
+                .unsqueeze(1)
+                .repeat(1, total_num_anchors)
         )
         gt_bboxes_per_image_b = (
             (gt_bboxes_per_image[:, 1] + 0.5 * gt_bboxes_per_image[:, 3])
-            .unsqueeze(1)
-            .repeat(1, total_num_anchors)
+                .unsqueeze(1)
+                .repeat(1, total_num_anchors)
         )
 
         b_l = x_centers_per_image - gt_bboxes_per_image_l
@@ -820,7 +854,7 @@ class YOLOXHead(nn.Module):
         is_in_boxes_anchor = is_in_boxes_all | is_in_centers_all
 
         is_in_boxes_and_center = (
-            is_in_boxes[:, is_in_boxes_anchor] & is_in_centers[:, is_in_boxes_anchor]
+                is_in_boxes[:, is_in_boxes_anchor] & is_in_centers[:, is_in_boxes_anchor]
         )
         return is_in_boxes_anchor, is_in_boxes_and_center
 
@@ -902,3 +936,21 @@ class YOLOXHead(nn.Module):
         x2 = torch.clamp(x2 + padding, max=img_size)
 
         return x1, x2
+
+    def kpts_loss(self, kpts_preds, kpts_targets, bbox_targets):
+        sigmas = self.kps_sigmas.to(kpts_preds.device)
+        kpts_preds_x, kpts_targets_x = kpts_preds[:, 0::3], kpts_targets[:, 0::2]
+        kpts_preds_y, kpts_targets_y = kpts_preds[:, 1::3], kpts_targets[:, 1::2]
+        kpts_preds_score = kpts_preds[:, 2::3]
+        # mask
+        kpt_mask = (kpts_targets[:, 0::2] > 0)
+
+        lkptv = self.bcewithlog_loss(kpts_preds_score, kpt_mask.float()).mean(axis=1)
+        # OKS based loss
+        d = (kpts_preds_x - kpts_targets_x) ** 2 + (kpts_preds_y - kpts_targets_y) ** 2
+        bbox_scale = torch.prod(bbox_targets[:, -2:], dim=1, keepdim=True)  # scale derived from bbox gt
+        kpt_loss_factor = (torch.sum(kpt_mask != 0) + torch.sum(kpt_mask == 0)) / torch.sum(kpt_mask != 0)
+        oks = torch.exp(-d / (bbox_scale * (4 * sigmas) + 1e-9))
+        lkpt = kpt_loss_factor * ((1 - oks ** 2) * kpt_mask).mean(axis=1)
+
+        return lkpt, lkptv

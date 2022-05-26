@@ -58,7 +58,7 @@ def vis(img, boxes, scores, cls_ids, conf=0.5, class_names=None, kps=[], seg=[])
         cv2.putText(img, text, (x0, y0 + txt_size[1]), font, 0.4, txt_color, thickness=1)
 
         if len(kps) > 0:
-            kp_ls = kps[i].reshape(-1, 2)
+            kp_ls = kps[i].reshape(-1, 3)[:, :2]
             for kp in kp_ls:
                 cv2.circle(img, list(np.array(kp, int)), 2, (0, 255, 0), 8)
 

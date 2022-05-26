@@ -261,7 +261,7 @@ class MosaicDetection(Dataset):
         cp_bboxes_transformed_np[:, 1::2] = np.clip(
             cp_bboxes_transformed_np[:, 1::2] - y_offset, 0, target_h
         )
-        #add for 5 landmarks
+        #add for landmarks
         for j, kps in enumerate(cp_landmarks_transformed_np):
             kps = kps.reshape(-1, 2)
             for k, point in enumerate(kps):

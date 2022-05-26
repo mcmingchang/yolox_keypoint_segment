@@ -84,6 +84,8 @@ class Exp(BaseExp):
         self.test_conf = 0.01
         self.nmsthre = 0.65
 
+        self.model_export = False
+
     def get_model(self):
         from yolox.models import YOLOX, YOLOPAFPN, YOLOXHead
 
@@ -99,7 +101,7 @@ class Exp(BaseExp):
                                  in_features=self.in_features, backbone_name=self.backbone_name, act=self.act,
                                  input_size=self.input_size)
             head = YOLOXHead(self.num_classes, self.width, in_channels=self.in_channels, act=self.act,
-                             keypoints=self.keypoints, segcls=self.segcls)
+                             keypoints=self.keypoints, segcls=self.segcls, model_export=self.model_export)
             self.model = YOLOX(backbone, head)
 
         self.model.apply(init_yolo)
