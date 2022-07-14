@@ -28,6 +28,7 @@ class Exp(BaseExp):
         self.in_channels = [256, 512, 1024]
         self.in_features = ("dark3", "dark4", "dark5")
         self.backbone_name = 'CSPDarknet'
+        self.slim_neck = False
 
         self.data_num_workers = 4
         self.input_size = (640, 640)  # (height, width)
@@ -87,7 +88,7 @@ class Exp(BaseExp):
         self.model_export = False
 
     def get_model(self):
-        from yolox.models import YOLOX, YOLOPAFPN, YOLOXHead
+        from yolox.models import YOLOX, YOLOPAFPN, YOLOXHead, YOLOPAFPNSLIM
 
         def init_yolo(M):
             for m in M.modules():
@@ -96,10 +97,14 @@ class Exp(BaseExp):
                     m.momentum = 0.03
 
         if getattr(self, "model", None) is None:
-
-            backbone = YOLOPAFPN(self.img_channel, self.depth, self.width, in_channels=self.in_channels,
-                                 in_features=self.in_features, backbone_name=self.backbone_name, act=self.act,
-                                 input_size=self.input_size)
+            if self.slim_neck:
+                backbone = YOLOPAFPNSLIM(self.img_channel, self.depth, self.width, in_channels=self.in_channels,
+                                     in_features=self.in_features, backbone_name=self.backbone_name, act=self.act,
+                                     input_size=self.input_size)
+            else:
+                backbone = YOLOPAFPN(self.img_channel, self.depth, self.width, in_channels=self.in_channels,
+                                     in_features=self.in_features, backbone_name=self.backbone_name, act=self.act,
+                                     input_size=self.input_size)
             head = YOLOXHead(self.num_classes, self.width, in_channels=self.in_channels, act=self.act,
                              keypoints=self.keypoints, segcls=self.segcls, model_export=self.model_export)
             self.model = YOLOX(backbone, head)

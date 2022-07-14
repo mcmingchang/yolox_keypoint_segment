@@ -6,7 +6,7 @@ import torch.nn as nn
 
 from .yolo_head import YOLOXHead
 from .yolo_pafpn import YOLOPAFPN
-
+from .yolo_pafpn_slim import YOLOPAFPNSLIM
 
 class YOLOX(nn.Module):
     """
@@ -15,10 +15,10 @@ class YOLOX(nn.Module):
     and detection results during test.
     """
 
-    def __init__(self, backbone=None, head=None):
+    def __init__(self, backbone=None, head=None, slim_neck=False):
         super().__init__()
         if backbone is None:
-            backbone = YOLOPAFPN()
+            backbone = YOLOPAFPNSLIM() if slim_neck else YOLOPAFPN()
         if head is None:
             head = YOLOXHead(80)
 

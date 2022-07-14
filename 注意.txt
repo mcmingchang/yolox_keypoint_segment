@@ -5,8 +5,8 @@ pip install -v -e .
 
 ## 训练   -d 为GPU数量
 #### 车牌关键点检测
-python tools/train.py -expn plate_keypoint -n yolox-kp -d 1 -b 8 --fp16 -c model.pth  --resume
 python tools/train.py -expn plate_keypoint -n yolox-ccpd -d 4 -b 32 --fp16 -c model.pth  --resume
+python tools/train.py -expn plate_ccpd-slim -n yolox-ccpd -d 4 -b 32 --fp16 -c
 
 #### 车牌分割
 python tools/train.py -expn plate_seg -n yolox-seg -d 1 -b 8 --fp16 -c model.pth  --resume

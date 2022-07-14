@@ -31,7 +31,7 @@ class BaseConv(nn.Module):
     """A Conv2d -> Batchnorm -> silu/leaky relu block"""
 
     def __init__(
-            self, in_channels, out_channels, ksize, stride, groups=1, bias=False, act="silu"
+            self, in_channels, out_channels, ksize=1, stride=1, groups=1, bias=False, act="silu"
     ):
         super().__init__()
         # same padding
@@ -46,14 +46,63 @@ class BaseConv(nn.Module):
             bias=bias,
         )
         self.bn = nn.BatchNorm2d(out_channels)
-        self.act = get_activation(act, inplace=True)
+        self.act = get_activation(act, inplace=True) if act else None
 
     def forward(self, x):
-        return self.act(self.bn(self.conv(x)))
+        if self.act:
+            return self.act(self.bn(self.conv(x)))
+        else:
+            return self.bn(self.conv(x))
 
     def fuseforward(self, x):
-        return self.act(self.conv(x))
+        if self.act:
+            return self.act(self.conv(x))
+        else:
+            return self.conv(x)
 
+
+class GSConv(nn.Module):
+    # GSConv https://github.com/AlanLi1997/slim-neck-by-gsconv
+    def __init__(self, in_channels, out_channels, ksize=1, stride=1, groups=1, act="silu"):
+        super().__init__()
+        out_channels = out_channels // 2
+        self.cv1 = BaseConv(in_channels, out_channels, ksize, stride, groups, act=act)
+        self.cv2 = BaseConv(out_channels, out_channels, 5, 1, groups=out_channels, act=act)
+
+    def forward(self, x):
+        x1 = self.cv1(x)
+        x2 = torch.cat((x1, self.cv2(x1)), 1)
+        b, n, h, w = x2.data.size()
+        b_n = b * n // 2
+        y = x2.reshape(b_n, 2, h * w)
+        y = y.permute(1, 0, 2)
+        y = y.reshape(2, -1, n // 2, h, w)
+        return torch.cat((y[0], y[1]), 1)
+
+class GSBottleneck(nn.Module):
+    # GS Bottleneck https://github.com/AlanLi1997/slim-neck-by-gsconv
+    def __init__(self, in_channels, out_channels, k=3, s=1):
+        super().__init__()
+        hidden = out_channels // 2
+        self.conv_lighting = nn.Sequential(
+            GSConv(in_channels, hidden, 1, 1),
+            GSConv(hidden, out_channels, 1, 1, act=False))
+    def forward(self, x):
+        return self.conv_lighting(x)
+
+class VoVGSCSP(nn.Module):
+    # VoV-GSCSP https://github.com/AlanLi1997/slim-neck-by-gsconv
+    def __init__(self, in_channels, out_channels, n=1, shortcut=True, depthwise=False,
+                 expansion=0.5, act='silu'):
+        super().__init__()
+        hidden = int(out_channels * expansion)
+        self.cv1 = BaseConv(in_channels, hidden, act=act)
+        self.cv2 = BaseConv(2 * hidden, out_channels, act=act)
+        self.m = nn.Sequential(*(GSBottleneck(hidden, hidden) for _ in range(n)))
+
+    def forward(self, x):
+        x1 = self.cv1(x)
+        return self.cv2(torch.cat((self.m(x1), x1), dim=1))
 
 class DWConv(nn.Module):
     """Depthwise Conv + Conv"""

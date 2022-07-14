@@ -10,6 +10,9 @@ from yolox.exp import Exp as MyExp
 class Exp(MyExp):
     def __init__(self):
         super(Exp, self).__init__()
+        #### t
+        # self.depth = 0.33
+        # self.width = 0.375
         #### s
         self.depth = 0.33
         self.width = 0.50
@@ -28,6 +31,7 @@ class Exp(MyExp):
         self.keypoints = 4
         self.num_classes = 4
         self.data_num_workers = 4
+        self.slim_neck = True
 
         self.pin_memory = True
         self.input_size = (192, 320)  # (height, width)
