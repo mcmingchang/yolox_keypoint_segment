@@ -30,7 +30,7 @@ python tools/demo.py image -n yolox-plaster -seg -c latest_ckpt.pth --path imgs/
 python tools/demo.py image -n yolox-masonry -seg -c latest_ckpt.pth --path imgs/masonry --conf 0.25 --nms 0.45 --tsize 320 --save_result --device cpu
 
 ## 导出onnx
-python tools/export_onnx.py -n yolox-ccpd -c model_weights/masonry_s.pth
+python tools/export_onnx.py -n yolox-ccpd -b 10 -c model_weights/masonry_s.pth
 
 ## 导出trt
 python tools/trt.py -n yolox-ccpd --batch 10 -c model_weights/your_ckpt.pth

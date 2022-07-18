@@ -39,6 +39,7 @@ class Exp(MyExp):
         self.data_dir = 'datasets/ccpd'
         self.mosaic_prob = 0.7
         self.multiscale_range = [5, 5]  # 5
+        self.save_history_ckpt = False
         # self.adam = True
 
         # self.backbone_name = 'CoAtNet'

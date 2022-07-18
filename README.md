@@ -6,6 +6,7 @@
 - [x] YOLOX with instance segmentation
 - [x] YOLOX with panoptic segmentation
 - [x] YOLOX-CoAtNet
+- [x] YOLOX-gsconv   [Slim-neck by GSConv](https://github.com/AlanLi1997/slim-neck-by-gsconv)
 
 YOLOX is an anchor-free version of YOLO, with a simpler design but better performance! It aims to bridge the gap between research and industrial communities.
 For more details, please refer to our [report on Arxiv](https://arxiv.org/abs/2107.08430).
