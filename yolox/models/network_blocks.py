@@ -61,13 +61,13 @@ class BaseConv(nn.Module):
             return self.conv(x)
 
 
-class GSConv(nn.Module):
+class GSConv_better(nn.Module):
     # GSConv https://github.com/AlanLi1997/slim-neck-by-gsconv
     def __init__(self, in_channels, out_channels, ksize=1, stride=1, groups=1, act="silu"):
         super().__init__()
-        out_channels = out_channels // 2
-        self.cv1 = BaseConv(in_channels, out_channels, ksize, stride, groups, act=act)
-        self.cv2 = BaseConv(out_channels, out_channels, 5, 1, groups=out_channels, act=act)
+        hidden = out_channels // 2
+        self.cv1 = BaseConv(in_channels, hidden, ksize, stride, groups, act=act)
+        self.cv2 = BaseConv(hidden, hidden, 5, 1, groups=hidden, act=act)
 
     def forward(self, x):
         x1 = self.cv1(x)
@@ -78,6 +78,23 @@ class GSConv(nn.Module):
         y = y.permute(1, 0, 2)
         y = y.reshape(2, -1, n // 2, h, w)
         return torch.cat((y[0], y[1]), 1)
+
+
+class GSConv(nn.Module):
+    # GSConv https://github.com/AlanLi1997/slim-neck-by-gsconv
+    def __init__(self, in_channels, out_channels, ksize=1, stride=1, groups=1, act="silu"):
+        super().__init__()
+        hidden = out_channels // 2
+        self.cv1 = BaseConv(in_channels, hidden, ksize, stride, groups, act=act)
+        self.cv2 = BaseConv(hidden, hidden, 5, 1, groups=hidden, act=act)
+        self.shuf = nn.Conv2d(hidden * 2, out_channels, kernel_size=1, bias=False)
+
+    def forward(self, x):
+        x1 = self.cv1(x)
+        x2 = torch.cat((x1, self.cv2(x1)), 1)
+        # normative-shuffle, TRT supported
+        return self.shuf(x2)
+
 
 class GSBottleneck(nn.Module):
     # GS Bottleneck https://github.com/AlanLi1997/slim-neck-by-gsconv

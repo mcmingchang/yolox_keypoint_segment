@@ -9,3 +9,4 @@ from .yolo_head import YOLOXHead
 from .yolo_pafpn import YOLOPAFPN
 from .yolo_pafpn_slim import YOLOPAFPNSLIM
 from .yolox import YOLOX
+from .yolov7_tiny import YOLO7TINY
