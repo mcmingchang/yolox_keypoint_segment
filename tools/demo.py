@@ -367,6 +367,8 @@ def main(exp, args):
         model.cuda()
         if args.fp16:
             model.half()  # to FP16
+    if exp.model_name == 'yolov7_tiny':
+        model.fuse()
     model.eval()
 
     if not args.trt:

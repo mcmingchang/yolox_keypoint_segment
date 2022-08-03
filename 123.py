@@ -21,12 +21,12 @@ if __name__ == '__main__':
     # backbone = YOLOPAFPNSLIM(img_channel, depth, width, in_channels=in_channels, in_features=in_features,
     #                      backbone_name='CSPDarknet').cuda()  # CSPDarknet  CoAtNet  0.01215 s
 
-    backbone = YOLO7TINY(img_channel=img_channel).cuda()  # 0.00922 s  0.00638 s
+    backbone = YOLO7TINY(img_channel=img_channel).cuda()  # 0.01224 s  0.01066 s
 
     ## 输入320*320  输出128,40,40  256,20,20  512,10,10        seg多一个 64,80,80
 
-    head = YOLOXHead(1, width, in_channels=in_channels,
-                     keypoints=0, segcls=0).cuda()
+    head = YOLOXHead(1, width, in_channels=in_channels, keypoints=0, segcls=0,
+                     act="silu").cuda()
     model = YOLOX(backbone, head).cuda()
     model.fuse()
     model.eval()
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     # print(out.shape, seg_out.shape)
     # print('???', seg_out.shape)
     #
-    # torch.onnx.export(model, img, 'model.onnx', opset_version=12,
+    # torch.onnx.export(backbone, img, 'model2.onnx', opset_version=12,
     #                       input_names=['images'], output_names=['output'],
     #                       dynamic_axes={'images': {0: 'batch_size', 2: 'h', 3: 'w'},  # , 2: 'h', 3: 'w'
     #                                     'output': {0: 'batch_size'},
@@ -50,9 +50,11 @@ if __name__ == '__main__':
         print(out.shape)
 
     for i in range(50):
-        backbone(img)
+        out, seg_out = model(img)
+        # backbone(img)
 
     start_time = time.perf_counter()
-    backbone(img)
+    # backbone(img)
+    out, seg_out = model(img)
     end_time = time.perf_counter()
     print(f'time cost: {round(end_time - start_time, 5)} s')

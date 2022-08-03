@@ -31,7 +31,9 @@ class Exp(MyExp):
         self.keypoints = 4
         self.num_classes = 4
         self.data_num_workers = 4
-        self.slim_neck = True
+        self.model_name = 'yolov7_tiny'
+        ### yolo_pafpn yolo_pafpn_slim
+        ### CoAtNet_pafpn yolov7_tiny
 
         self.pin_memory = True
         self.input_size = (192, 320)  # (height, width)

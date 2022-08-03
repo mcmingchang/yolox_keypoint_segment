@@ -86,6 +86,8 @@ def main():
     model = replace_module(model, nn.SiLU, SiLU)
     model.head.decode_in_inference = args.decode_in_inference
     model.head.model_export = True
+    if exp.model_name == 'yolov7_tiny':
+        model.fuse()
 
     logger.info("loading checkpoint done.")
     dummy_input = torch.randn(args.batch_size, exp.img_channel, exp.test_size[0], exp.test_size[1])

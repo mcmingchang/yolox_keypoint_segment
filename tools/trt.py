@@ -64,6 +64,8 @@ def main():
 
     model.load_state_dict(ckpt["model"])
     logger.info("loaded checkpoint done.")
+    if exp.model_name == 'yolov7_tiny':
+        model.fuse()
     model.eval()
     model.cuda()
     model.head.decode_in_inference = args.decode_in_inference
