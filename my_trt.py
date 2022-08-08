@@ -22,9 +22,9 @@ def main():
 
     ckpt = torch.load('last_epoch_ckpt-v7-lrelu.pth', map_location="cpu")
     # load the model state dict
-
     model.load_state_dict(ckpt["model"])
-
+    if exp.model_name == 'yolov7_tiny':
+        model.fuse()
     model.eval()
     model.cuda()
     model.head.decode_in_inference = False
