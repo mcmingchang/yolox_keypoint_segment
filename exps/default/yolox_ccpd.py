@@ -27,11 +27,12 @@ class Exp(MyExp):
         # self.width = 1.25
 
         self.exp_name = os.path.split(os.path.realpath(__file__))[1].split(".")[0]
-        self.act = 'silu'
         self.keypoints = 4
         self.num_classes = 4
         self.data_num_workers = 4
         self.model_name = 'yolov7_tiny'
+        self.repeat = 0 if self.model_name == 'yolov7_tiny' else 2
+        self.act = 'lrelu' if self.model_name == 'yolov7_tiny' else 'silu'
         ### yolo_pafpn yolo_pafpn_slim
         ### CoAtNet_pafpn yolov7_tiny
 

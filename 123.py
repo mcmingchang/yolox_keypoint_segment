@@ -1,6 +1,7 @@
 import torch, time
 from yolox.models import YOLOX, YOLOPAFPN, YOLOXHead, CSPDarknet, YOLOPAFPNSLIM, YOLO7TINY
 
+
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -16,22 +17,21 @@ if __name__ == '__main__':
     # backbone = CSPDarknet(img_channel, depth, width, depthwise=False, act="silu", out_features=in_features)
 
     # backbone = YOLOPAFPN(img_channel, depth, width, in_channels=in_channels, in_features=in_features,
-    #                      backbone_name='CSPDarknet').cuda()  # CSPDarknet  CoAtNet  0.01097 s
+    #                      backbone_name='CSPDarknet').cuda()  # CSPDarknet  CoAtNet  0.01363 s
 
     # backbone = YOLOPAFPNSLIM(img_channel, depth, width, in_channels=in_channels, in_features=in_features,
     #                      backbone_name='CSPDarknet').cuda()  # CSPDarknet  CoAtNet  0.01215 s
 
-    backbone = YOLO7TINY(img_channel=img_channel).cuda()  # 0.01224 s  0.01066 s
+    backbone = YOLO7TINY(img_channel=img_channel, width=0.5, act='lrelu').cuda()  # 0.00808 s  0.00644 s
 
     ## 输入320*320  输出128,40,40  256,20,20  512,10,10        seg多一个 64,80,80
 
     head = YOLOXHead(1, width, in_channels=in_channels, keypoints=0, segcls=0,
-                     act="silu").cuda()
+                     act="silu", repeat=0).cuda()  # 0.01101 s   0.00827 s
     model = YOLOX(backbone, head).cuda()
     model.fuse()
     model.eval()
     img = torch.randn(10, 3, 192, 320).cuda()
-    model.training = False
     out, seg_out = model(img)
     # print(out.shape, seg_out.shape)
     # print('???', seg_out.shape)
@@ -43,11 +43,11 @@ if __name__ == '__main__':
     #                                     }
     #                       )
 
-    outs = backbone(img)
-    print(count_parameters(backbone))  # 4212672          coat8459312
-    # features = [outs[f] for f in in_features]
-    for out in outs:
-        print(out.shape)
+    # outs = backbone(img)
+    # print(count_parameters(backbone))  # 4212672          coat8459312
+    # # features = [outs[f] for f in in_features]
+    # for out in outs:
+    #     print(out.shape)
 
     for i in range(50):
         out, seg_out = model(img)

@@ -28,6 +28,7 @@ class Exp(BaseExp):
         self.in_channels = [256, 512, 1024]
         self.in_features = ("dark3", "dark4", "dark5")
         self.model_name = 'yolo_pafpn'
+        self.repeat = 2
 
         self.data_num_workers = 4
         self.input_size = (640, 640)  # (height, width)
@@ -114,7 +115,8 @@ class Exp(BaseExp):
                                      input_size=self.input_size)
 
             head = YOLOXHead(self.num_classes, self.width, in_channels=self.in_channels, act=self.act,
-                             keypoints=self.keypoints, segcls=self.segcls, model_export=self.model_export)
+                             keypoints=self.keypoints, segcls=self.segcls, model_export=self.model_export,
+                             repeat=self.repeat)
             self.model = YOLOX(backbone, head)
 
         self.model.apply(init_yolo)

@@ -27,7 +27,8 @@ class YOLOXHead(nn.Module):
             in_channels=[256, 512, 1024],
             act="silu",
             depthwise=False,
-            model_export=False
+            model_export=False,
+            repeat=2,
     ):
         """
         Args:
@@ -83,14 +84,7 @@ class YOLOXHead(nn.Module):
                             ksize=3,
                             stride=1,
                             act=act,
-                        ),
-                        Conv(
-                            in_channels=int(256 * width),
-                            out_channels=int(256 * width),
-                            ksize=3,
-                            stride=1,
-                            act=act,
-                        ),
+                        ) for _ in range(repeat)
                     ]
                 )
             )
@@ -103,14 +97,7 @@ class YOLOXHead(nn.Module):
                             ksize=3,
                             stride=1,
                             act=act,
-                        ),
-                        Conv(
-                            in_channels=int(256 * width),
-                            out_channels=int(256 * width),
-                            ksize=3,
-                            stride=1,
-                            act=act,
-                        ),
+                        ) for _ in range(repeat)
                     ]
                 )
             )

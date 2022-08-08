@@ -1,38 +1,38 @@
 import torch
 import torch.nn as nn
-
+import numpy as np
 from .network_blocks import BaseConv, CSPLayer, DWConv
 
 
 class YOLOv7_Backone(nn.Module):
-    def __init__(self, img_channel=3):
+    def __init__(self, img_channel=3, act='lrelu'):
         super().__init__()
-        self.conv1 = BaseConv(img_channel, 32, 3, 2, act='lrelu')
-        self.conv2 = BaseConv(32, 64, 3, 2, act='lrelu')
-        self.conv3 = BaseConv(64, 32, 1, 1, act='lrelu')
-        self.conv4 = BaseConv(64, 32, 1, 1, act='lrelu')
-        self.conv5 = BaseConv(32, 32, 3, 1, act='lrelu')
-        self.conv6 = BaseConv(32, 32, 3, 1, act='lrelu')
-        self.conv7 = BaseConv(32*4, 64, 1, 1, act='lrelu')
+        self.conv1 = BaseConv(img_channel, 32, 3, 2, act=act)
+        self.conv2 = BaseConv(32, 64, 3, 2, act=act)
+        self.conv3 = BaseConv(64, 32, 1, 1, act=act)
+        self.conv4 = BaseConv(64, 32, 1, 1, act=act)
+        self.conv5 = BaseConv(32, 32, 3, 1, act=act)
+        self.conv6 = BaseConv(32, 32, 3, 1, act=act)
+        self.conv7 = BaseConv(32*4, 64, 1, 1, act=act)
 
         self.mp = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.conv9 = BaseConv(64, 64, 1, 1, act='lrelu')
-        self.conv10 = BaseConv(64, 64, 1, 1, act='lrelu')
-        self.conv11 = BaseConv(64, 64, 3, 1, act='lrelu')
-        self.conv12 = BaseConv(64, 64, 3, 1, act='lrelu')
-        self.conv14 = BaseConv(64*4, 128, 1, 1, act='lrelu')
+        self.conv9 = BaseConv(64, 64, 1, 1, act=act)
+        self.conv10 = BaseConv(64, 64, 1, 1, act=act)
+        self.conv11 = BaseConv(64, 64, 3, 1, act=act)
+        self.conv12 = BaseConv(64, 64, 3, 1, act=act)
+        self.conv14 = BaseConv(64*4, 128, 1, 1, act=act)
 
-        self.conv16 = BaseConv(128, 128, 1, 1, act='lrelu')
-        self.conv17 = BaseConv(128, 128, 1, 1, act='lrelu')
-        self.conv18 = BaseConv(128, 128, 3, 1, act='lrelu')
-        self.conv19 = BaseConv(128, 128, 3, 1, act='lrelu')
-        self.conv21 = BaseConv(128*4, 256, 1, 1, act='lrelu')
+        self.conv16 = BaseConv(128, 128, 1, 1, act=act)
+        self.conv17 = BaseConv(128, 128, 1, 1, act=act)
+        self.conv18 = BaseConv(128, 128, 3, 1, act=act)
+        self.conv19 = BaseConv(128, 128, 3, 1, act=act)
+        self.conv21 = BaseConv(128*4, 256, 1, 1, act=act)
 
-        self.conv23 = BaseConv(256, 256, 1, 1, act='lrelu')
-        self.conv24 = BaseConv(256, 256, 1, 1, act='lrelu')
-        self.conv25 = BaseConv(256, 256, 3, 1, act='lrelu')
-        self.conv26 = BaseConv(256, 256, 3, 1, act='lrelu')
-        self.conv28 = BaseConv(256*4, 512, 1, 1, act='lrelu')
+        self.conv23 = BaseConv(256, 256, 1, 1, act=act)
+        self.conv24 = BaseConv(256, 256, 1, 1, act=act)
+        self.conv25 = BaseConv(256, 256, 3, 1, act=act)
+        self.conv26 = BaseConv(256, 256, 3, 1, act=act)
+        self.conv28 = BaseConv(256*4, 512, 1, 1, act=act)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -80,54 +80,54 @@ class YOLO7TINY(nn.Module):
             in_features=("dark3", "dark4", "dark5"),
             in_channels=[256, 512, 1024],
             depthwise=False,
-            act="silu",
+            act="lrelu",
             backbone_name='CSPDarknet',
             input_size=(320, 320)
     ):
         super().__init__()
-        self.backbone = YOLOv7_Backone(img_channel=img_channel)
-        self.conv29 = BaseConv(512, 256, 1, 1, act='lrelu')
-        self.conv30 = BaseConv(512, 256, 1, 1, act='lrelu')
-        self.conv35 = BaseConv(256*4, 256, 1, 1, act='lrelu')
-        self.conv37 = BaseConv(256*2, 256, 1, 1, act='lrelu')
+        self.backbone = YOLOv7_Backone(img_channel=img_channel, act=act)
+        self.conv29 = BaseConv(512, 256, 1, 1, act=act)
+        self.conv30 = BaseConv(512, 256, 1, 1, act=act)
+        self.conv35 = BaseConv(256*4, 256, 1, 1, act=act)
+        self.conv37 = BaseConv(256*2, 256, 1, 1, act=act)
         self.upsample = nn.Upsample(None, 2, 'nearest')
-        self.conv38 = BaseConv(256, 128, 1, 1, act='lrelu')
-        self.conv40 = BaseConv(256, 128, 1, 1, act='lrelu')
+        self.conv38 = BaseConv(256, 128, 1, 1, act=act)
+        self.conv40 = BaseConv(256, 128, 1, 1, act=act)
 
-        self.conv42 = BaseConv(128*2, 64, 1, 1, act='lrelu')
-        self.conv43 = BaseConv(128*2, 64, 1, 1, act='lrelu')
-        self.conv44 = BaseConv(64, 64, 3, 1, act='lrelu')
-        self.conv45 = BaseConv(64, 64, 3, 1, act='lrelu')
-        self.conv47 = BaseConv(64*4, 128, 1, 1, act='lrelu')
+        self.conv42 = BaseConv(128*2, 64, 1, 1, act=act)
+        self.conv43 = BaseConv(128*2, 64, 1, 1, act=act)
+        self.conv44 = BaseConv(64, 64, 3, 1, act=act)
+        self.conv45 = BaseConv(64, 64, 3, 1, act=act)
+        self.conv47 = BaseConv(64*4, 128, 1, 1, act=act)
 
-        self.conv48 = BaseConv(128, 64, 1, 1, act='lrelu')
-        self.conv50 = BaseConv(64*2, 64, 1, 1, act='lrelu')
+        self.conv48 = BaseConv(128, 64, 1, 1, act=act)
+        self.conv50 = BaseConv(64*2, 64, 1, 1, act=act)
 
-        self.conv52 = BaseConv(64*2, 32, 1, 1, act='lrelu')
-        self.conv53 = BaseConv(64*2, 32, 1, 1, act='lrelu')
-        self.conv54 = BaseConv(32, 32, 3, 1, act='lrelu')
-        self.conv55 = BaseConv(32, 32, 3, 1, act='lrelu')
-        self.conv57 = BaseConv(32*4, 64, 1, 1, act='lrelu')
+        self.conv52 = BaseConv(64*2, 32, 1, 1, act=act)
+        self.conv53 = BaseConv(64*2, 32, 1, 1, act=act)
+        self.conv54 = BaseConv(32, 32, 3, 1, act=act)
+        self.conv55 = BaseConv(32, 32, 3, 1, act=act)
+        self.conv57 = BaseConv(32*4, 64, 1, 1, act=act)
 
-        self.conv58 = BaseConv(64, 128, 3, 2, act='lrelu')
+        self.conv58 = BaseConv(64, 128, 3, 2, act=act)
 
-        self.conv60 = BaseConv(128*2, 64, 1, 1, act='lrelu')
-        self.conv61 = BaseConv(128*2, 64, 1, 1, act='lrelu')
-        self.conv62 = BaseConv(64, 64, 3, 1, act='lrelu')
-        self.conv63 = BaseConv(64, 64, 3, 1, act='lrelu')
-        self.conv65 = BaseConv(64*4, 128, 1, 1, act='lrelu')
+        self.conv60 = BaseConv(128*2, 64, 1, 1, act=act)
+        self.conv61 = BaseConv(128*2, 64, 1, 1, act=act)
+        self.conv62 = BaseConv(64, 64, 3, 1, act=act)
+        self.conv63 = BaseConv(64, 64, 3, 1, act=act)
+        self.conv65 = BaseConv(64*4, 128, 1, 1, act=act)
 
-        self.conv66 = BaseConv(128, 256, 3, 2, act='lrelu')
+        self.conv66 = BaseConv(128, 256, 3, 2, act=act)
 
-        self.conv68 = BaseConv(256*2, 128, 1, 1, act='lrelu')
-        self.conv69 = BaseConv(256*2, 128, 1, 1, act='lrelu')
-        self.conv70 = BaseConv(128, 128, 3, 1, act='lrelu')
-        self.conv71 = BaseConv(128, 128, 3, 1, act='lrelu')
-        self.conv73 = BaseConv(128*4, 256, 1, 1, act='lrelu')
+        self.conv68 = BaseConv(256*2, 128, 1, 1, act=act)
+        self.conv69 = BaseConv(256*2, 128, 1, 1, act=act)
+        self.conv70 = BaseConv(128, 128, 3, 1, act=act)
+        self.conv71 = BaseConv(128, 128, 3, 1, act=act)
+        self.conv73 = BaseConv(128*4, 256, 1, 1, act=act)
 
-        self.conv74 = BaseConv(64, 128, 3, 1, act='lrelu')
-        self.conv75 = BaseConv(128, 256, 3, 1, act='lrelu')
-        self.conv76 = BaseConv(256, 512, 3, 1, act='lrelu')
+        self.conv74 = BaseConv(64, int(in_channels[-3] * width), 3, 1, act=act)
+        self.conv75 = BaseConv(128, int(in_channels[-2] * width), 3, 1, act=act)
+        self.conv76 = BaseConv(256, int(in_channels[-1] * width), 3, 1, act=act)
 
     def forward(self, x):
         P5, P4, P3 = self.backbone(x)

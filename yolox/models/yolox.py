@@ -7,6 +7,7 @@ import torch.nn as nn
 from .yolo_head import YOLOXHead
 from .yolo_pafpn import YOLOPAFPN
 from .yolo_pafpn_slim import YOLOPAFPNSLIM
+from .yolov7_tiny import YOLO7TINY
 from yolox.utils.fuse_model import fuse_conv_and_bn
 from yolox.models.network_blocks import BaseConv
 
@@ -17,10 +18,10 @@ class YOLOX(nn.Module):
     and detection results during test.
     """
 
-    def __init__(self, backbone=None, head=None, slim_neck=False):
+    def __init__(self, backbone=None, head=None):
         super().__init__()
         if backbone is None:
-            backbone = YOLOPAFPNSLIM() if slim_neck else YOLOPAFPN()
+            backbone = YOLOPAFPN()
         if head is None:
             head = YOLOXHead(80)
 
@@ -29,12 +30,13 @@ class YOLOX(nn.Module):
 
     def fuse(self):  # fuse model Conv2d() + BatchNorm2d() layers
         # for yolov7
-        print('Fusing layers... ')
-        for m in self.backbone.modules():
-            if type(m) is BaseConv and hasattr(m, 'bn'):
-                m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv
-                delattr(m, 'bn')  # remove batchnorm
-                m.forward = m.fuseforward  # update forward
+        if isinstance(self.backbone, YOLO7TINY):
+            print('Fusing layers... ')
+            for m in self.backbone.modules():
+                if type(m) is BaseConv and hasattr(m, 'bn'):
+                    m.conv = fuse_conv_and_bn(m.conv, m.bn)  # update conv
+                    delattr(m, 'bn')  # remove batchnorm
+                    m.forward = m.fuseforward  # update forward
 
     def forward(self, x, targets=None, seg_targets=None):
         # fpn output content features of [dark3, dark4, dark5]
