@@ -6,7 +6,7 @@ pip install -v -e .
 ## 训练   -d 为GPU数量
 #### 车牌关键点检测
 python tools/train.py -expn plate_keypoint -n yolox-ccpd -d 4 -b 32 --fp16 -c model.pth  --resume
-python tools/train.py -expn plate_ccpd-slim -n yolox-ccpd -d 4 -b 32 --fp16 -c
+python tools/train.py -expn plate_ccpd-v7 -n yolox-ccpd -d 4 -b 32 --fp16 -c
 
 #### 车牌分割
 python tools/train.py -expn plate_seg -n yolox-seg -d 1 -b 8 --fp16 -c model.pth  --resume
@@ -31,6 +31,7 @@ python tools/demo.py image -n yolox-masonry -seg -c latest_ckpt.pth --path imgs/
 
 ## 导出onnx
 python tools/export_onnx.py -n yolox-ccpd -b 10 -c model_weights/masonry_s.pth
+python tools/export_onnx.py -n yolox-masonry -b 1 -c latest_ckpt.pth
 
 ## 导出trt
 python tools/trt.py -n yolox-ccpd --batch 10 -c model_weights/your_ckpt.pth

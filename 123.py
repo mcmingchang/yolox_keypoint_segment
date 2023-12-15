@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # backbone = YOLOPAFPNSLIM(img_channel, depth, width, in_channels=in_channels, in_features=in_features,
     #                      backbone_name='CSPDarknet').cuda()  # CSPDarknet  CoAtNet  0.01215 s
 
-    backbone = YOLO7TINY(img_channel=img_channel, width=0.5, act='lrelu').cuda()  # 0.00808 s  0.00644 s
+    backbone = YOLO7TINY(img_channel=img_channel, width=width, act='lrelu').cuda()  # 0.00808 s  0.00644 s
 
     ## 输入320*320  输出128,40,40  256,20,20  512,10,10        seg多一个 64,80,80
 
@@ -44,7 +44,7 @@ if __name__ == '__main__':
     #                       )
 
     # outs = backbone(img)
-    # print(count_parameters(backbone))  # 4212672          coat8459312
+    # print(count_parameters(backbone))  # 5990464  1891344
     # # features = [outs[f] for f in in_features]
     # for out in outs:
     #     print(out.shape)

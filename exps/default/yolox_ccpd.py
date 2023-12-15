@@ -10,9 +10,6 @@ from yolox.exp import Exp as MyExp
 class Exp(MyExp):
     def __init__(self):
         super(Exp, self).__init__()
-        #### t
-        # self.depth = 0.33
-        # self.width = 0.375
         #### s
         self.depth = 0.33
         self.width = 0.50

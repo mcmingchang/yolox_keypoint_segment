@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 # Copyright (c) Megvii, Inc. and its affiliates.
 
-import os, platform
+import os, platform, traceback
 from loguru import logger
 
 import cv2
@@ -173,13 +173,14 @@ class COCODataset(Dataset):
 
     def load_anno_from_ids(self, id_):
         if self.random_dataset:
-            try:
-                img, box_ls = self.randdataset.get_train_data()
-            except:
+            check = False
+            while check is False:
                 try:
-                    img, box_ls = self.randdataset.get_train_data()
+                    img, box_ls, check = self.randdataset.get_train_data()
                 except:
-                    img, box_ls = self.randdataset.get_train_data()
+                    print('??????????', traceback.print_exc())
+                    img, box_ls, check = self.randdataset.get_train_data()
+
             height, width, _ = img.shape
             im_ann = {'height': height, 'width': width}
             annotations = []

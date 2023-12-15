@@ -43,7 +43,7 @@ class RandomDataset:
 
 
     def get_train_data(self):
-        if random.randint(0, 1) >-1:
+        if random.randint(0, 1) == 0:
             box_ls = []
             img_name = random.sample(self.name_ls, 1)[0]
             file_name = os.path.splitext(img_name)[0]
@@ -62,7 +62,7 @@ class RandomDataset:
                     cate = obj['label']
                     if cate == ['brick wall', 'brick_wall']:
                         cate = 'brick-wall'
-                    elif cate in ['wire box', 'wire_box']:
+                    elif cate in ['wire box', 'wire_box', 'wirebox']:
                         cate = 'wire-box'
                     polygon = np.round(np.array(obj['points']))
                     if len(polygon) == 2:
@@ -86,9 +86,9 @@ class RandomDataset:
                         continue
                     box_ls.append(f'{x1},{y1},{x2},{y2},{self.pre_define_categories[cate]}/seg/{mask_str}')
             else:
-                img = Image.open(f'{self.path}/{img_name}')
-                img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-
+                # img = Image.open(f'{self.path}/{img_name}')
+                # img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                img = cv2.imread(f'{self.path}/{img_name}')
                 h, w = img.shape[:2]
                 new_w = int((w - 10) / 2)
                 left = img[:, :new_w]
@@ -97,7 +97,7 @@ class RandomDataset:
             gray = cv2.cvtColor(right, cv2.COLOR_BGR2GRAY)
             gray = np.expand_dims(gray, axis=-1)
             train_img = np.concatenate([left, gray], axis=-1)
-            return train_img, box_ls
+            return train_img, box_ls, True
         else:
             total_w, data_ls = 0, []
             img_name_ls = random.sample(self.name_ls, 5)
@@ -120,7 +120,7 @@ class RandomDataset:
                         cate = obj['label']
                         if cate == ['brick wall', 'brick_wall']:
                             cate = 'brick-wall'
-                        elif cate in ['wire box', 'wire_box']:
+                        elif cate in ['wire box', 'wire_box', 'wirebox']:
                             cate = 'wire-box'
                         if cate not in self.cate_ls:
                             print(f'{self.path}/{json_name}', cate)
@@ -132,8 +132,9 @@ class RandomDataset:
                         polygon = np.expand_dims(polygon, axis=0)
                         cv2.fillPoly(mask_dict[cate], polygon.astype(np.int32), self.cate_id[cate])
                 else:
-                    img = Image.open(f'{self.path}/{img_name}')
-                    img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                    # img = Image.open(f'{self.path}/{img_name}')
+                    # img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
+                    img = cv2.imread(f'{self.path}/{img_name}')
 
                     h, w = img.shape[:2]
                     new_w = int((w - 10) / 2)
@@ -173,11 +174,6 @@ class RandomDataset:
             new_img = all_img[:, start:start + new_w]
             split_mask = all_mask[:, start:start + new_w]
 
-            # cv2.imshow('all_img', all_img)
-            # cv2.imshow('all_mask', all_mask)
-            # cv2.imshow('new_img', new_img)
-            # cv2.imshow('split_mask', split_mask)
-
             box_ls = []
             for cate_name in self.mask_order:
                 cate_mask = np.zeros((140, new_w), np.uint8)
@@ -207,7 +203,7 @@ class RandomDataset:
                         mask_str = encode(mask_merge)
                         mask_str = str(mask_str['counts'], 'utf-8')
                         box_ls.append(f'{x1},{y1},{x2},{y2},{self.pre_define_categories[cate_name]}/seg/{mask_str}')
-            return new_img, box_ls
+            return new_img, box_ls, True
 
 
 if __name__ == '__main__':
@@ -222,7 +218,6 @@ if __name__ == '__main__':
     dataset = RandomDataset(data_dir, cate_ls, mask_order, cate_id)
     for i in range(100):
         img, box_ls = dataset.get_train_data()
-        # cv2.imwrite(f'masonry/{i}.png', img)
         left = img[:, :, 0:3].astype(np.uint8)
         right = img[:, :, -1]
         h, w = left.shape[:2]
