@@ -301,11 +301,11 @@ class ValTransform:
         self.legacy = legacy
 
     # assume input is cv2 img for now
-    def __call__(self, img, res, input_size):
+    def __call__(self, img, res, input_size, tmp):
         img, _, seg = preproc(img, input_size, np.array([]), self.swap)
         if self.legacy:  # F
             img = img[::-1, :, :].copy()
             img /= 255.0
             img -= np.array([0.485, 0.456, 0.406]).reshape(3, 1, 1)
             img /= np.array([0.229, 0.224, 0.225]).reshape(3, 1, 1)
-        return img, np.zeros((1, 5))
+        return img, np.zeros((1, 5)), np.zeros(1)

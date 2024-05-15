@@ -178,9 +178,9 @@ class Trainer:
 
         self.model = model
 
-        # self.evaluator = self.exp.get_evaluator(
-        #     batch_size=self.args.batch_size, is_distributed=self.is_distributed
-        # )
+        self.evaluator = self.exp.get_evaluator(
+            batch_size=self.args.batch_size, is_distributed=self.is_distributed
+        )
         # Tensorboard logger
         if self.rank == 0:
             if self.args.logger == "tensorboard":
@@ -330,14 +330,28 @@ class Trainer:
             if is_parallel(evalmodel):
                 evalmodel = evalmodel.module
 
-        # with adjust_status(evalmodel, training=False):
-        #     (ap50_95, ap50, summary), predictions = self.exp.eval(
-        #         evalmodel, self.evaluator, self.is_distributed, return_outputs=True
-        #     )
+        with adjust_status(evalmodel, training=False):
+            (ap50_95, ap50, summary) = self.exp.eval(
+                evalmodel, self.evaluator, self.is_distributed, #return_outputs=True
+            )
 
-        # update_best_ckpt = ap50_95 > self.best_ap
-        # self.best_ap = max(self.best_ap, ap50_95)
-        #
+        update_best_ckpt = ap50_95 > self.best_ap
+        self.best_ap = max(self.best_ap, ap50_95)
+
+        if self.rank == 0:
+            if self.args.logger == "tensorboard":
+                self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
+                self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
+            if self.args.logger == "wandb":
+                self.wandb_logger.log_metrics({
+                    "val/COCOAP50": ap50,
+                    "val/COCOAP50_95": ap50_95,
+                    "train/epoch": self.epoch + 1,
+                })
+                self.wandb_logger.log_images(predictions)
+            logger.info("\n" + summary)
+        synchronize()
+
         # if self.rank == 0:
         #     if self.args.logger == "tensorboard":
         #         self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
@@ -351,21 +365,7 @@ class Trainer:
         #         self.wandb_logger.log_images(predictions)
         #     logger.info("\n" + summary)
         # synchronize()
-
-        # if self.rank == 0:
-        #     if self.args.logger == "tensorboard":
-        #         self.tblogger.add_scalar("val/COCOAP50", ap50, self.epoch + 1)
-        #         self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
-        #     if self.args.logger == "wandb":
-        #         self.wandb_logger.log_metrics({
-        #             "val/COCOAP50": ap50,
-        #             "val/COCOAP50_95": ap50_95,
-        #             "train/epoch": self.epoch + 1,
-        #         })
-        #         self.wandb_logger.log_images(predictions)
-        #     logger.info("\n" + summary)
-        # synchronize()
-        update_best_ckpt, ap50_95 = False, None
+        # update_best_ckpt, ap50_95 = False, None
         self.save_ckpt("last_epoch", update_best_ckpt, ap=ap50_95)
         if self.save_history_ckpt:
             self.save_ckpt(f"epoch_{self.epoch + 1}", ap=ap50_95)

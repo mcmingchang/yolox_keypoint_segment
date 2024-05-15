@@ -158,7 +158,7 @@ class COCOEvaluator:
             model(x)
             model = model_trt
 
-        for cur_iter, (imgs, _, info_imgs, ids) in enumerate(
+        for cur_iter, (imgs, _, info_imgs, ids, _) in enumerate(
             progress_bar(self.dataloader)
         ):
             with torch.no_grad():
@@ -169,7 +169,7 @@ class COCOEvaluator:
                 if is_time_record:
                     start = time.time()
 
-                outputs = model(imgs)
+                outputs, _ = model(imgs)
                 if decoder is not None:
                     outputs = decoder(outputs, dtype=outputs.type())
 
