@@ -69,7 +69,11 @@ class BaseExp(metaclass=ABCMeta):
                 src_type = type(src_value)
                 if src_value is not None and src_type != type(v):
                     try:
-                        v = src_type(v)
+                        # str "(640, 832)" must be literal_eval'd to tuple, not tuple(...) (which would split into chars)
+                        if src_type is tuple and isinstance(v, str):
+                            v = ast.literal_eval(v)
+                        else:
+                            v = src_type(v)
                     except Exception:
                         v = ast.literal_eval(v)
                 setattr(self, k, v)
